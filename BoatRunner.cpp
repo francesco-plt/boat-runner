@@ -1,6 +1,6 @@
 // This has been adapted from the Vulkan tutorial
 
-#include "proj.hpp"
+#include "BoatRunner.hpp"
 #include "game.cpp"
 
 const std::string MODELS_PATH = "models/";
@@ -147,7 +147,7 @@ protected:
 // This is the main: probably you do not need to touch this!
 int main()
 {
-	proj app;
+	BoatRunner app;
 
 	try
 	{
