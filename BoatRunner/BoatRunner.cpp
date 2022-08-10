@@ -1,7 +1,7 @@
 // This has been adapted from the Vulkan tutorial
 
 #include "BoatRunner.hpp"
-#include "game.cpp"
+#include "Game.cpp"
 
 const std::string MODELS_PATH = "models/";
 const std::string TEXTURE_PATH = "textures/";
