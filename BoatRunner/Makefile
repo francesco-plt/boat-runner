@@ -1,26 +1,28 @@
 PWD = $(shell pwd)
-PROJ_NAME = $(shell cut -c 1-3 <<< $(notdir $(PWD)))
+PROJ_NAME = "BoatRunner"
+INC = -I./headers
+SHAD_DIR = ./shaders
+OUT_DIR = ./build
 CFLAGS = -std=c++17 -O2
-INC=-I./headers
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
+DBGFLAGS = -g
 
-$(PROJ_NAME): main.cpp
-	g++ $(CFLAGS) $(INC) -o $(PROJ_NAME) main.cpp $(LDFLAGS)
+$(PROJ_NAME): BoatRunner.cpp
+	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
+	glslc -o $(SHAD_DIR)/vert.spv $(SHAD_DIR)/shader.vert
+	g++ $(CFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp $(LDFLAGS)
 
 .PHONY: test clean
 
 test: $(PROJ_NAME)
-	./$(PROJ_NAME)
+	./build/$(PROJ_NAME)
 
 build:
-	g++ $(CFLAGS) $(INC) -o $(PROJ_NAME) main.cpp $(LDFLAGS)
-
-clean:
-	rm -f $(PROJ_NAME)	
+	g++ $(CFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp $(LDFLAGS) $(DBGFLAGS)
 
 shad:
-	glslc -o shaders/BRDF1Frag.spv shaders/BRDF1Frag.frag
-	glslc -o shaders/BRDF1Vert.spv shaders/BRDF1Vert.vert
-	glslc -o shaders/BRDF2Frag.spv shaders/BRDF2Frag.frag
-	glslc -o shaders/BRDF2Vert.spv shaders/BRDF2Vert.vert
-	
+	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
+	glslc -o $(SHAD_DIR)/vert.spv $(SHAD_DIR)/shader.vert
+
+clean:
+	rm -f build/$(PROJ_NAME) $(SHAD_DIR)/frag.spv $(SHAD_DIR)/vert.spv
