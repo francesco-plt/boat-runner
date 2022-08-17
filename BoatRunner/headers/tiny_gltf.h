@@ -3194,8 +3194,6 @@ static bool ParseJsonAsValue(Value *ret, const json &o) {
     case json::value_t::discarded:
       // default:
       break;
-      case nlohmann::detail::value_t::binary:
-          break;
   }
 #endif
   if (ret) *ret = std::move(val);
