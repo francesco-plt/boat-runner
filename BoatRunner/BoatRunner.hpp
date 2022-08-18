@@ -30,6 +30,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "headers/stb_image.h"
 
+//
+
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 // Lesson 22.0
@@ -308,6 +310,12 @@ protected:
     int texturesInPool;
     int setsInPool;
 
+    // custom code
+    glm::vec3 CamAng = glm::vec3(0.0f, 95.68f, 0.0f);
+    glm::vec3 CamPos = glm::vec3(1.65f, 1.5f, -0.1f);
+
+    VkResult result;
+
     // Lesson 12
     GLFWwindow *window;
     VkInstance instance;
@@ -368,10 +376,11 @@ protected:
     // Lesson 12
     void initVulkan()
     {
-        createInstance();       // L12
-        setupDebugMessenger();  // L22.0
-        createSurface();        // L13
-        pickPhysicalDevice();   // L14
+        createInstance();      // L12
+        setupDebugMessenger(); // L22.0
+        createSurface();       // L13
+        pickPhysicalDevice();  // L14
+        getDeviceInfo();
         createLogicalDevice();  // L14
         createSwapChain();      // L15
         createImageViews();     // L15
@@ -511,8 +520,10 @@ protected:
         VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
     {
-
-        std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+        // printing debug info in case of errors
+        const auto msg = std::string(pCallbackData->pMessage);
+        if (msg.find("Error") != std::string::npos)
+            std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
         return VK_FALSE;
     }
 
@@ -543,12 +554,12 @@ protected:
     void pickPhysicalDevice()
     {
         uint32_t deviceCount = 0;
-        vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-
-        if (deviceCount == 0)
+        result = vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+        if (result != VK_SUCCESS || deviceCount <= 0)
         {
-            throw std::runtime_error("failed to find GPUs with Vulkan support!");
+            throw std::runtime_error("failed to find GPUs with Vulkan Support!");
         }
+        std::cout << deviceCount << " Physical Device(s) found \n\n";
 
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
@@ -560,6 +571,8 @@ protected:
             if (isDeviceSuitable(device))
             {
                 physicalDevice = device;
+                std::cout << "Suitable Physical Device Found ("
+                          << device << ")\n\n";
                 break;
             }
         }
@@ -570,6 +583,69 @@ protected:
         }
     }
 
+    void getDeviceInfo()
+    {
+        // check device properties and features
+        // Show device properties
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+
+        std::cout << "\tAPI version: 0x" << std::hex << deviceProperties.apiVersion << "\n";
+        std::cout << "\tDriver version: 0x" << std::hex << deviceProperties.driverVersion << "\n";
+        std::cout << "\tVendor ID: 0x" << std::hex << deviceProperties.vendorID << "\n";
+        std::cout << "\tDevice ID: 0x" << std::hex << deviceProperties.deviceID << "\n";
+        std::cout << "\tPhysical Device Type: " << deviceProperties.deviceType << "\t";
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
+            std::cout << " (Discrete GPU)\n";
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
+            std::cout << " (Integrated GPU)\n";
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
+            std::cout << " (Virtual GPU)\n";
+        if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
+            std::cout << " (CPU)\n";
+        std::cout << "\tDevice Name: " << deviceProperties.deviceName << "\n";
+
+        // Show device features
+        VkPhysicalDeviceFeatures deviceFeatures;
+        vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+        std::cout << "\n\tPhysical Device Features:\n";
+        std::cout << "\t\tgeometryShader = " << deviceFeatures.geometryShader << "\n";
+        std::cout << "\t\ttessellationShader = " << deviceFeatures.tessellationShader << "\n";
+        std::cout << "\t\tmultiDrawIndirect = " << deviceFeatures.multiDrawIndirect << "\n";
+        std::cout << "\t\twideLines = " << deviceFeatures.wideLines << "\n";
+        std::cout << "\t\tlargePoints = " << deviceFeatures.largePoints << "\n";
+        std::cout << "\t\tmultiViewport = " << deviceFeatures.multiViewport << "\n";
+        std::cout << "\t\tocclusionQueryPrecise = " << deviceFeatures.occlusionQueryPrecise << "\n";
+        std::cout << "\t\tpipelineStatisticsQuery = " << deviceFeatures.pipelineStatisticsQuery << "\n";
+        std::cout << "\t\tshaderFloat64 = " << deviceFeatures.shaderFloat64 << "\n";
+        std::cout << "\t\tshaderInt64 = " << deviceFeatures.shaderInt64 << "\n";
+        std::cout << "\t\tshaderInt16 = " << deviceFeatures.shaderInt16 << "\n";
+
+        // Show device memory properties
+        VkPhysicalDeviceMemoryProperties vpdmp;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &vpdmp);
+
+        std::cout << "\n\tMemory Types: " << vpdmp.memoryTypeCount << "\n";
+        for (unsigned int i = 0; i < vpdmp.memoryTypeCount; i++)
+        {
+            VkMemoryType vmt = vpdmp.memoryTypes[i];
+            std::cout << "\t\tMemory: " << i << ":";
+            if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
+                std::cout << " DeviceLocal";
+            if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
+                std::cout << " HostVisible";
+            if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
+                std::cout << " HostCoherent";
+            if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
+                std::cout << " HostCached";
+            if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
+                std::cout << " LazilyAllocated";
+            std::cout << "\n";
+        }
+
+        std::cout << "\n";
+    }
     // Lesson 13
     bool isDeviceSuitable(VkPhysicalDevice device)
     {
@@ -732,6 +808,7 @@ protected:
             PrintVkError(result);
             throw std::runtime_error("failed to create logical device!");
         }
+        std::cout << "Logical Device Created (" << device << ")\n\n";
 
         vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
         vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
@@ -794,6 +871,8 @@ protected:
             PrintVkError(result);
             throw std::runtime_error("failed to create swap chain!");
         }
+        std::cout << "Swap chain created "
+                  << "(" << swapChain << ")" << std::endl;
 
         vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
         swapChainImages.resize(imageCount);
@@ -867,6 +946,8 @@ protected:
             swapChainImageViews[i] = createImageView(swapChainImages[i],
                                                      swapChainImageFormat,
                                                      VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+            std::cout << "Image View created (" << swapChainImageViews[i] << ")";
         }
     }
 
@@ -895,6 +976,7 @@ protected:
             PrintVkError(result);
             throw std::runtime_error("failed to create image view!");
         }
+
         return imageView;
     }
 
@@ -1017,6 +1099,7 @@ protected:
             PrintVkError(result);
             throw std::runtime_error("failed to create command pool!");
         }
+        std::cout << "Command Pool Created (" << commandPool << ")\n\n";
     }
 
     // Lesson 22.1
@@ -1578,6 +1661,8 @@ protected:
         glfwDestroyWindow(window);
 
         glfwTerminate();
+
+        std::cout << "Cleanup done. Exiting..." << std::endl;
     }
 };
 
