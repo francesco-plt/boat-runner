@@ -523,7 +523,9 @@ protected:
         // printing debug info in case of errors
         const auto msg = std::string(pCallbackData->pMessage);
         if (msg.find("Error") != std::string::npos)
-            std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+            std::cerr << "\033[31m"
+                      << "\nvalidation layer: " << pCallbackData->pMessage << "\033[0m\n"
+                      << std::endl;
         return VK_FALSE;
     }
 
@@ -872,7 +874,7 @@ protected:
             throw std::runtime_error("failed to create swap chain!");
         }
         std::cout << "Swap chain created "
-                  << "(" << swapChain << ")" << std::endl;
+                  << "(" << swapChain << ")\n" << std::endl;
 
         vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
         swapChainImages.resize(imageCount);
@@ -947,7 +949,7 @@ protected:
                                                      swapChainImageFormat,
                                                      VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-            std::cout << "Image View created (" << swapChainImageViews[i] << ")";
+            std::cout << "Image View created (" << swapChainImageViews[i] << ")\n\n";
         }
     }
 
@@ -1859,8 +1861,8 @@ void Pipeline::init(BaseProject *bp, const std::string &VertShader, const std::s
     auto vertShaderCode = readFile(VertShader);
     auto fragShaderCode = readFile(FragShader);
 
-    std::cout << "Vertex shader len: " << vertShaderCode.size() << "\n";
-    std::cout << "Fragment shader len: " << fragShaderCode.size() << "\n";
+    std::cout << "Vertex shader length: " << vertShaderCode.size() << "\n";
+    std::cout << "Fragment shader length: " << fragShaderCode.size() << "\n";
 
     VkShaderModule vertShaderModule =
         createShaderModule(vertShaderCode);
