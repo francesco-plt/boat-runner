@@ -104,7 +104,7 @@ protected:
         DS_Rock1.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Rock1}});
 
         M_Rock1.init(this, MODEL_DIR + "/Rock2.obj");
-        T_Rock1.init(this, TEXTURE_PATH + "/Rock2.png");
+        T_Rock1.init(this, TEXTURE_PATH + "/Rock2.jpg");
         DS_Rock1.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Rock2}});
 
         DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}});
