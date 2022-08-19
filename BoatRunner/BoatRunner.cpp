@@ -89,7 +89,7 @@ protected:
 
         // Models, textures and Descriptors (values assigned to the uniforms)
         M_Boat.init(this, MODEL_DIR + "/Boat.obj");
-        T_Boat.init(this, TEXTURE_PATH + "/Boat.bmp");
+        T_Boat.init(this, TEXTURE_PATH + "/Boat.png");
         DS_Boat.init(this, &DSLobj, {// the second parameter, is a pointer to the Uniform Set Layout of this set
                                      // the last parameter is an array, with one element per binding of the set.
                                      // first  elmenet : the binding number

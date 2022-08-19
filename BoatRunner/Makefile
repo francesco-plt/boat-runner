@@ -1,11 +1,10 @@
-PWD = $(shell pwd)
 PROJ_NAME = "BoatRunner"
 INC = -I./headers
 SHAD_DIR = ./shaders
 OUT_DIR = ./build
 CFLAGS = -std=c++20
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
-DBGFLAGS = -g
+DBGFLAGS = -g -ggdb -glldb -Wall -Wextra
 
 $(PROJ_NAME): BoatRunner.cpp
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
@@ -18,7 +17,7 @@ test: $(PROJ_NAME)
 	./build/$(PROJ_NAME)
 
 build:
-	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
+	g++ $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 shad:
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag

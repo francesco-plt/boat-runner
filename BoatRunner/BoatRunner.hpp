@@ -954,10 +954,12 @@ protected:
     }
 
     // Lesson 14
-    VkImageView createImageView(VkImage image, VkFormat format,
-                                VkImageAspectFlags aspectFlags,
-                                uint32_t mipLevels // New in Lesson 23
+    VkImageView createImageView(
+        VkImage image, VkFormat format,
+        VkImageAspectFlags aspectFlags,
+        uint32_t mipLevels // New in Lesson 23
     )
+
     {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -971,12 +973,12 @@ protected:
         viewInfo.subresourceRange.layerCount = 1;
         VkImageView imageView;
 
-        VkResult result = vkCreateImageView(device, &viewInfo, nullptr,
-                                            &imageView);
+        VkResult result = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
+        std::cout << "\nImage View created (" << imageView << ")\n";
         if (result != VK_SUCCESS)
         {
             PrintVkError(result);
-            throw std::runtime_error("failed to create image view!");
+            throw std::runtime_error("Failed to create image view!");
         }
 
         return imageView;
