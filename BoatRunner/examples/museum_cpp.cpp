@@ -1,6 +1,6 @@
 // This has been adapted from the Vulkan tutorial
 
-#include "MuseumProject.hpp"
+#include "museum_hpp.hpp"
 
 /*const std::string MODEL_PATH = "models/viking_room.obj";
 const std::string TEXTURE_PATH = "textures/viking_room.png";*/
