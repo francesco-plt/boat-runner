@@ -3,6 +3,7 @@
 
 const std::string MODEL_DIR = "models";
 const std::string TEXTURE_PATH = "textures";
+const std::string SHADERS_PATH = "shaders";
 
 struct globalUniformBufferObject
 {
@@ -44,19 +45,12 @@ protected:
 
     DescriptorSet DS_global;
 
-    // Camera
-    // glm::mat3 CamDir = glm::mat3(1.0f);
-    // glm::vec3 CamPos = glm::vec3(9.83158f, 14.6194f, -15.6189f);
-    // glm::vec3 CamAng = glm::vec3(-0.300168f, 2.41573f, 0.0702695f);
-    // Game
-    // Game game;
-
     // application parameters
     void setWindowParameters()
     {
         // Window size, titile and initial background
-        windowWidth = 1080;
-        windowHeight = 1920;
+        windowWidth = 800;
+        windowHeight = 600;
         windowTitle = "Boat Runner";
         initialBackgroundColor = {1.0f, 1.0f, 1.0f, 1.0f};
 
@@ -85,19 +79,21 @@ protected:
         // Pipelines [Shader couples]
         // The last array, is a vector of pointer to the layouts of the sets that will
         // be used in this pipeline. The first element will be set 0, and so on..
-        P1.init(this, "shaders/vert.spv", "shaders/frag.spv", {&DSLglobal, &DSLobj});
+        P1.init(this, SHADERS_PATH + "/vert.spv", SHADERS_PATH + "/frag.spv", {&DSLglobal, &DSLobj});
 
         // Models, textures and Descriptors (values assigned to the uniforms)
         M_Boat.init(this, MODEL_DIR + "/Boat.obj");
-        T_Boat.init(this, TEXTURE_PATH + "/Boat.png");
-        DS_Boat.init(this, &DSLobj, {// the second parameter, is a pointer to the Uniform Set Layout of this set
-                                     // the last parameter is an array, with one element per binding of the set.
-                                     // first  elmenet : the binding number
-                                     // second element : UNIFORM or TEXTURE (an enum) depending on the type
-                                     // third  element : only for UNIFORMs, the size of the corresponding C++ object
-                                     // fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-                                     {0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-                                     {1, TEXTURE, 0, &T_Boat}});
+        T_Boat.init(this, TEXTURE_PATH + "/Boat.bmp");
+        DS_Boat.init(this, &DSLobj, {
+            // the second parameter, is a pointer to the Uniform Set Layout of this set
+            // the last parameter is an array, with one element per binding of the set.
+            // first  element : the binding number
+            // second element : UNIFORM or TEXTURE (an enum) depending on the type
+            // third  element : only for UNIFORMs, the size of the corresponding C++ object
+            // fourth element : only for TEXTUREs, the pointer to the corresponding texture object
+            {0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+            {1, TEXTURE, 0, &T_Boat}
+        });
 
         M_Rock1.init(this, MODEL_DIR + "/Rock1.obj");
         T_Rock1.init(this, TEXTURE_PATH + "/Rock1.png");
@@ -125,6 +121,8 @@ protected:
         T_Rock2.cleanup();
         M_Rock2.cleanup();
 
+        DS_global.cleanup();
+
         P1.cleanup();
         DSLglobal.cleanup();
         DSLobj.cleanup();
@@ -142,48 +140,43 @@ protected:
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             P1.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
-            0, nullptr);
+            0, nullptr
+        );
 
-        VkBuffer vertexBuffers1[] = {M_Boat.vertexBuffer};
-        // property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
-        VkDeviceSize offsets1[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers1, offsets1);
-        // property .indexBuffer of models, contains the VkBuffer handle to its index buffer
+        VkBuffer vertexBuffersBoat[] = {M_Boat.vertexBuffer};
+        VkDeviceSize offsetsBoat[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersBoat, offsetsBoat);
         vkCmdBindIndexBuffer(commandBuffer, M_Boat.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-        // property .pipelineLayout of a pipeline contains its layout.
-        // property .descriptorSets of a descriptor set contains its elements.
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             P1.pipelineLayout, 0, 1, &DS_Boat.descriptorSets[currentImage],
-            0, nullptr);
-
-        // property .indices.size() of models, contains the number of triangles * 3 of the mesh.
+            0, nullptr
+        );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Boat.indices.size()), 1, 0, 0, 0);
 
-        VkBuffer vertexBuffers2[] = {M_Rock1.vertexBuffer};
-        VkDeviceSize offsets2[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets2);
+        VkBuffer vertexBuffersRock1[] = {M_Rock1.vertexBuffer};
+        VkDeviceSize offsetsRock1[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersRock1, offsetsRock1);
         vkCmdBindIndexBuffer(commandBuffer, M_Rock1.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             P1.pipelineLayout, 0, 1, &DS_Rock1.descriptorSets[currentImage],
-            0, nullptr);
-
+            0, nullptr
+        );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Rock1.indices.size()), 1, 0, 0, 0);
 
-        VkBuffer vertexBuffers3[] = {M_Rock2.vertexBuffer};
-        VkDeviceSize offsets3[] = {0};
-
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets3);
+        VkBuffer vertexBuffersRock2[] = {M_Rock2.vertexBuffer};
+        VkDeviceSize offsetsRock2[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffersRock2, offsetsRock2);
         vkCmdBindIndexBuffer(commandBuffer, M_Rock2.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
             P1.pipelineLayout, 0, 1, &DS_Rock2.descriptorSets[currentImage],
-            0, nullptr);
+            0, nullptr
+        );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
     }
 
@@ -194,7 +187,6 @@ protected:
         static auto startTime = std::chrono::high_resolution_clock::now();
         auto currentTime = std::chrono::high_resolution_clock::now();
         float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        static float debounce = time;
 
         const float ROT_SPEED = glm::radians(1.0f);
         const float MOVE_SPEED = 0.01f;
@@ -264,12 +256,29 @@ protected:
             glm::radians(90.0f),
             swapChainExtent.width / (float)swapChainExtent.height,
             0.1f, 10.0f);
-        
         gubo.proj[1][1] *= -1;
 
         vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
         memcpy(data, &gubo, sizeof(gubo));
         vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
+
+        // Boat
+        ubo.model = glm::mat4(1.0f);
+        vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
+
+        // Rock1
+        ubo.model = glm::mat4(1.0f);
+        vkMapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vkUnmapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage]);
+
+        // Rock2
+        ubo.model = glm::mat4(1.0f);
+        vkMapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+        memcpy(data, &ubo, sizeof(ubo));
+        vkUnmapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage]);
     }
 };
 

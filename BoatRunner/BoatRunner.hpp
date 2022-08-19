@@ -2118,11 +2118,9 @@ void DescriptorSetLayout::init(BaseProject *bp, std::vector<DescriptorSetLayoutB
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-    ;
     layoutInfo.pBindings = bindings.data();
 
-    VkResult result = vkCreateDescriptorSetLayout(BP->device, &layoutInfo,
-                                                  nullptr, &descriptorSetLayout);
+    VkResult result = vkCreateDescriptorSetLayout(BP->device, &layoutInfo, nullptr, &descriptorSetLayout);
     if (result != VK_SUCCESS)
     {
         PrintVkError(result);
@@ -2135,8 +2133,7 @@ void DescriptorSetLayout::cleanup()
     vkDestroyDescriptorSetLayout(BP->device, descriptorSetLayout, nullptr);
 }
 
-void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
-                         std::vector<DescriptorSetElement> E)
+void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL, std::vector<DescriptorSetElement> E)
 {
     BP = bp;
 
@@ -2154,10 +2151,11 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
             for (size_t i = 0; i < BP->swapChainImages.size(); i++)
             {
                 VkDeviceSize bufferSize = E[j].size;
-                BP->createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                                     VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                                 uniformBuffers[j][i], uniformBuffersMemory[j][i]);
+                BP->createBuffer(
+                    bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    uniformBuffers[j][i], uniformBuffersMemory[j][i]
+                );
             }
             toFree[j] = true;
         }
@@ -2168,8 +2166,7 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
     }
 
     // Create Descriptor set
-    std::vector<VkDescriptorSetLayout> layouts(BP->swapChainImages.size(),
-                                               DSL->descriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(BP->swapChainImages.size(), DSL->descriptorSetLayout);
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = BP->descriptorPool;
@@ -2178,8 +2175,7 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
 
     descriptorSets.resize(BP->swapChainImages.size());
 
-    VkResult result = vkAllocateDescriptorSets(BP->device, &allocInfo,
-                                               descriptorSets.data());
+    VkResult result = vkAllocateDescriptorSets(BP->device, &allocInfo, descriptorSets.data());
     if (result != VK_SUCCESS)
     {
         PrintVkError(result);
@@ -2191,6 +2187,8 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
         std::vector<VkWriteDescriptorSet> descriptorWrites(E.size());
         for (int j = 0; j < E.size(); j++)
         {
+            std::cout << "DescriptorSet [" << i << "] - type: " << E[j].type << ", binding: " << E[j].binding << std::endl;
+
             if (E[j].type == UNIFORM)
             {
                 VkDescriptorBufferInfo bufferInfo{};
@@ -2217,15 +2215,20 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
                 descriptorWrites[j].dstSet = descriptorSets[i];
                 descriptorWrites[j].dstBinding = E[j].binding;
                 descriptorWrites[j].dstArrayElement = 0;
-                descriptorWrites[j].descriptorType =
-                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                descriptorWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 descriptorWrites[j].descriptorCount = 1;
                 descriptorWrites[j].pImageInfo = &imageInfo;
+
+                std::cout << "DescriptorSet [" << i << "] is of type texture" << std::endl;
+                std::cout << "DescriptorSet [" << i << "] - imageView: " << imageInfo.imageView << std::endl;
+                std::cout << "DescriptorSet [" << i << "] - sampler: " << imageInfo.sampler << std::endl;
             }
         }
-        vkUpdateDescriptorSets(BP->device,
-                               static_cast<uint32_t>(descriptorWrites.size()),
-                               descriptorWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(
+            BP->device,
+            static_cast<uint32_t>(descriptorWrites.size()),
+            descriptorWrites.data(), 0, nullptr
+        );
     }
 }
 
