@@ -3,14 +3,14 @@ PROJ_NAME = "BoatRunner"
 INC = -I./headers
 SHAD_DIR = ./shaders
 OUT_DIR = ./build
-CFLAGS = -std=c++17 -O2
+CFLAGS = -std=c++20
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
 DBGFLAGS = -g
 
 $(PROJ_NAME): BoatRunner.cpp
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
 	glslc -o $(SHAD_DIR)/vert.spv $(SHAD_DIR)/shader.vert
-	g++ $(CFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp $(LDFLAGS)
+	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 .PHONY: test clean
 
@@ -18,7 +18,7 @@ test: $(PROJ_NAME)
 	./build/$(PROJ_NAME)
 
 build:
-	g++ $(CFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp $(LDFLAGS) $(DBGFLAGS)
+	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 shad:
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
