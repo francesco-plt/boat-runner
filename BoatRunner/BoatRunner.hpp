@@ -1,5 +1,3 @@
-// This has been adapted from the Vulkan tutorial
-
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -24,13 +22,19 @@
 #include <chrono>
 
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "headers/tiny_obj_loader.h"
-
 // New in Lesson 23 - to load images
 #define STB_IMAGE_IMPLEMENTATION
-#include "headers/stb_image.h"
 
-//
+#if defined(_WIN64)
+    #include <tiny_obj_loader.h>
+    #include <stb_image.h>
+#elif defined(_WIN32)
+    #include <tiny_obj_loader.h>
+    #include <stb_image.h>
+#else
+    #include "headers/stb_image.h"
+    #include "headers/tiny_obj_loader.h"
+#endif
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -85,61 +89,51 @@ struct Vertex
 };
 
 // Lesson 13
-struct QueueFamilyIndices
-{
+struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    bool isComplete()
-    {
+    bool isComplete() {
         return graphicsFamily.has_value() &&
                presentFamily.has_value();
     }
 };
 
 // Lesson 14
-struct SwapChainSupportDetails
-{
+struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
 
-//// For debugging - Lesson 22.0
+// For debugging - Lesson 22.0
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance,
                                       const VkDebugUtilsMessengerCreateInfoEXT *pCreateInfo,
                                       const VkAllocationCallbacks *pAllocator,
-                                      VkDebugUtilsMessengerEXT *pDebugMessenger)
-{
-    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)
-        vkGetInstanceProcAddr(instance,
-                              "vkCreateDebugUtilsMessengerEXT");
-    if (func != nullptr)
-    {
+                                      VkDebugUtilsMessengerEXT *pDebugMessenger) {
+
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr) {
         return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
-    }
-    else
-    {
+    } else {
         return VK_ERROR_EXTENSION_NOT_PRESENT;
     }
 }
 
-//// For debugging - Lesson 22.0
-void DestroyDebugUtilsMessengerEXT(VkInstance instance,
-                                   VkDebugUtilsMessengerEXT debugMessenger,
-                                   const VkAllocationCallbacks *pAllocator)
-{
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)
-        vkGetInstanceProcAddr(instance,
-                              "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr)
-    {
+// For debugging - Lesson 22.0
+void DestroyDebugUtilsMessengerEXT(
+    VkInstance instance,
+    VkDebugUtilsMessengerEXT debugMessenger,
+    const VkAllocationCallbacks *pAllocator
+) {
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr) {
         func(instance, debugMessenger, pAllocator);
     }
 }
-//// For debugging - Lesson 22.0
-struct errorcode
-{
+
+// For debugging - Lesson 22.0
+struct errorcode {
     VkResult resultCode;
     std::string meaning;
 } ErrorCodes[] = {
@@ -171,8 +165,8 @@ struct errorcode
     {VK_ERROR_INVALID_EXTERNAL_HANDLE, "Invalid External Handle"},
 
 };
-void PrintVkError(VkResult result)
-{
+
+void PrintVkError(VkResult result) {
     const int numErrorCodes = sizeof(ErrorCodes) / sizeof(struct errorcode);
     std::string meaning = "";
     for (int i = 0; i < numErrorCodes; i++)
@@ -188,8 +182,7 @@ void PrintVkError(VkResult result)
 
 class BaseProject;
 
-struct Model
-{
+struct Model {
     BaseProject *BP;
     std::vector<Vertex> vertices;
     std::vector<uint32_t> indices;
@@ -206,8 +199,7 @@ struct Model
     void cleanup();
 };
 
-struct Texture
-{
+struct Texture {
     BaseProject *BP;
     uint32_t mipLevels;
     VkImage textureImage;
@@ -223,15 +215,13 @@ struct Texture
     void cleanup();
 };
 
-struct DescriptorSetLayoutBinding
-{
+struct DescriptorSetLayoutBinding {
     uint32_t binding;
     VkDescriptorType type;
     VkShaderStageFlags flags;
 };
 
-struct DescriptorSetLayout
-{
+struct DescriptorSetLayout {
     BaseProject *BP;
     VkDescriptorSetLayout descriptorSetLayout;
 
@@ -239,8 +229,7 @@ struct DescriptorSetLayout
     void cleanup();
 };
 
-struct Pipeline
-{
+struct Pipeline {
     BaseProject *BP;
     VkPipeline graphicsPipeline;
     VkPipelineLayout pipelineLayout;
@@ -252,22 +241,19 @@ struct Pipeline
     void cleanup();
 };
 
-enum DescriptorSetElementType
-{
+enum DescriptorSetElementType {
     UNIFORM,
     TEXTURE
 };
 
-struct DescriptorSetElement
-{
+struct DescriptorSetElement {
     int binding;
     DescriptorSetElementType type;
     int size;
     Texture *tex;
 };
 
-struct DescriptorSet
-{
+struct DescriptorSet {
     BaseProject *BP;
 
     std::vector<std::vector<VkBuffer>> uniformBuffers;
@@ -276,14 +262,12 @@ struct DescriptorSet
 
     std::vector<bool> toFree;
 
-    void init(BaseProject *bp, DescriptorSetLayout *L,
-              std::vector<DescriptorSetElement> E);
+    void init(BaseProject *bp, DescriptorSetLayout *L, std::vector<DescriptorSetElement> E);
     void cleanup();
 };
 
 // MAIN !
-class BaseProject
-{
+class BaseProject {
     friend class Model;
     friend class Texture;
     friend class Pipeline;
@@ -292,8 +276,7 @@ class BaseProject
 
 public:
     virtual void setWindowParameters() = 0;
-    void run()
-    {
+    void run() {
         setWindowParameters();
         initWindow();
         initVulkan();
@@ -310,7 +293,7 @@ protected:
     int texturesInPool;
     int setsInPool;
 
-    // custom code
+    // Initial camera position and angles
     glm::vec3 CamAng = glm::vec3(0.0f, 95.68f, 0.0f);
     glm::vec3 CamPos = glm::vec3(1.65f, 1.5f, -0.1f);
 
@@ -361,8 +344,7 @@ protected:
     std::vector<VkFence> imagesInFlight;
 
     // Lesson 12
-    void initWindow()
-    {
+    void initWindow() {
         glfwInit();
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -374,8 +356,7 @@ protected:
     virtual void localInit() = 0;
 
     // Lesson 12
-    void initVulkan()
-    {
+    void initVulkan() {
         createInstance();      // L12
         setupDebugMessenger(); // L22.0
         createSurface();       // L13
@@ -396,9 +377,8 @@ protected:
         createSyncObjects();    // L22.3
     }
 
-    // Lesson 12 and 22.0
-    void createInstance()
-    {
+    // Lessons 12 and 22.0
+    void createInstance() {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = windowTitle.c_str();
@@ -426,8 +406,7 @@ protected:
         createInfo.ppEnabledExtensionNames = extensions.data();
 
         // For debugging [Lesson 22] - Start
-        if (!checkValidationLayerSupport())
-        {
+        if (!checkValidationLayerSupport()) {
             throw std::runtime_error("validation layers requested, but not available!");
         }
 
@@ -438,71 +417,59 @@ protected:
 
         populateDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *)&debugCreateInfo;
+        
         // For debugging [Lesson 22] - End
-
         VkResult result = vkCreateInstance(&createInfo, nullptr, &instance);
 
-        if (result != VK_SUCCESS)
-        {
+        if (result != VK_SUCCESS) {
             PrintVkError(result);
             throw std::runtime_error("failed to create instance!");
         }
     }
 
-    // Lesson 12 and L22.0
-    std::vector<const char *> getRequiredExtensions()
+    // Lessons 12 and L22.0
+    std::vector<const char *> getRequiredExtensions() 
     {
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions;
-        glfwExtensions =
-            glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        std::vector<const char *> extensions(glfwExtensions,
-                                             glfwExtensions + glfwExtensionCount);
+        std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
         return extensions;
     }
 
-    // Lesson 22.0 - debug support
-    bool checkValidationLayerSupport()
-    {
+    // Lessons 22.0 - debug support
+    bool checkValidationLayerSupport() {
+        
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
         std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount,
-                                           availableLayers.data());
+        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-        for (const char *layerName : validationLayers)
-        {
+        for (const char *layerName : validationLayers) {
+            
             bool layerFound = false;
-
-            for (const auto &layerProperties : availableLayers)
-            {
-                if (strcmp(layerName, layerProperties.layerName) == 0)
-                {
+            for (const auto &layerProperties : availableLayers) {
+                if (strcmp(layerName, layerProperties.layerName) == 0) {
                     layerFound = true;
                     break;
                 }
             }
 
-            if (!layerFound)
-            {
+            if (!layerFound) {
                 return false;
             }
         }
-
         return true;
     }
 
     // Lesson 22.0 - debug support
-    void populateDebugMessengerCreateInfo(
-        VkDebugUtilsMessengerCreateInfoEXT &createInfo)
-    {
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) {
         createInfo = {};
-        createInfo.sType =
-            VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+        createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         createInfo.messageSeverity =
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
             VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -518,8 +485,7 @@ protected:
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
-    {
+        const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData) {
         // printing debug info in case of errors
         const auto msg = std::string(pCallbackData->pMessage);
         if (msg.find("Error") != std::string::npos)
@@ -530,24 +496,19 @@ protected:
     }
 
     // Lesson 22.0 - debug support
-    void setupDebugMessenger()
-    {
+    void setupDebugMessenger() {
 
         VkDebugUtilsMessengerCreateInfoEXT createInfo{};
         populateDebugMessengerCreateInfo(createInfo);
 
-        if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
-                                         &debugMessenger) != VK_SUCCESS)
-        {
+        if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
             throw std::runtime_error("failed to set up debug messenger!");
         }
     }
 
     // Lesson 13
-    void createSurface()
-    {
-        if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
-        {
+    void createSurface() {
+        if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
             throw std::runtime_error("failed to create window surface!");
         }
     }
@@ -557,8 +518,7 @@ protected:
     {
         uint32_t deviceCount = 0;
         result = vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-        if (result != VK_SUCCESS || deviceCount <= 0)
-        {
+        if (result != VK_SUCCESS || deviceCount <= 0) {
             throw std::runtime_error("failed to find GPUs with Vulkan Support!");
         }
         std::cout << deviceCount << " Physical Device(s) found \n\n";
@@ -568,10 +528,8 @@ protected:
 
         std::cout << "Physical devices found: " << deviceCount << "\n";
 
-        for (const auto &device : devices)
-        {
-            if (isDeviceSuitable(device))
-            {
+        for (const auto &device : devices) {
+            if (isDeviceSuitable(device)) {
                 physicalDevice = device;
                 std::cout << "Suitable Physical Device Found ("
                           << device << ")\n\n";
@@ -579,14 +537,12 @@ protected:
             }
         }
 
-        if (physicalDevice == VK_NULL_HANDLE)
-        {
+        if (physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
         }
     }
 
-    void getDeviceInfo()
-    {
+    void getDeviceInfo() {
         // check device properties and features
         // Show device properties
         VkPhysicalDeviceProperties deviceProperties;
@@ -629,8 +585,7 @@ protected:
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &vpdmp);
 
         std::cout << "\n\tMemory Types: " << vpdmp.memoryTypeCount << "\n";
-        for (unsigned int i = 0; i < vpdmp.memoryTypeCount; i++)
-        {
+        for (unsigned int i = 0; i < vpdmp.memoryTypeCount; i++) {
             VkMemoryType vmt = vpdmp.memoryTypes[i];
             std::cout << "\t\tMemory: " << i << ":";
             if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
@@ -648,16 +603,15 @@ protected:
 
         std::cout << "\n";
     }
+
     // Lesson 13
-    bool isDeviceSuitable(VkPhysicalDevice device)
-    {
+    bool isDeviceSuitable(VkPhysicalDevice device) {
         QueueFamilyIndices indices = findQueueFamilies(device);
 
         bool extensionsSupported = checkDeviceExtensionSupport(device);
 
         bool swapChainAdequate = false;
-        if (extensionsSupported)
-        {
+        if (extensionsSupported) {
             SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
             swapChainAdequate = !swapChainSupport.formats.empty() &&
                                 !swapChainSupport.presentModes.empty();
@@ -671,8 +625,8 @@ protected:
     }
 
     // Lesson 13
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device)
-    {
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
+        
         QueueFamilyIndices indices;
 
         uint32_t queueFamilyCount = 0;
@@ -684,34 +638,28 @@ protected:
                                                  queueFamilies.data());
 
         int i = 0;
-        for (const auto &queueFamily : queueFamilies)
-        {
-            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
-            {
+        for (const auto &queueFamily : queueFamilies) {
+            if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphicsFamily = i;
             }
 
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface,
-                                                 &presentSupport);
-            if (presentSupport)
-            {
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+            if (presentSupport) {
                 indices.presentFamily = i;
             }
 
-            if (indices.isComplete())
-            {
+            if (indices.isComplete()) {
                 break;
             }
             i++;
         }
-
         return indices;
     }
 
     // Lesson 13
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device)
-    {
+    bool checkDeviceExtensionSupport(VkPhysicalDevice device) {
+        
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr,
                                              &extensionCount, nullptr);
@@ -723,17 +671,15 @@ protected:
         std::set<std::string> requiredExtensions(deviceExtensions.begin(),
                                                  deviceExtensions.end());
 
-        for (const auto &extension : availableExtensions)
-        {
+        for (const auto &extension : availableExtensions) {
             requiredExtensions.erase(extension.extensionName);
         }
-
         return requiredExtensions.empty();
     }
 
     // Lesson 14
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device)
-    {
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device) {
+        
         SwapChainSupportDetails details;
 
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface,
@@ -743,8 +689,7 @@ protected:
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount,
                                              nullptr);
 
-        if (formatCount != 0)
-        {
+        if (formatCount != 0) {
             details.formats.resize(formatCount);
             vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface,
                                                  &formatCount, details.formats.data());
@@ -754,8 +699,7 @@ protected:
         vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
                                                   &presentModeCount, nullptr);
 
-        if (presentModeCount != 0)
-        {
+        if (presentModeCount != 0) {
             details.presentModes.resize(presentModeCount);
             vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface,
                                                       &presentModeCount, details.presentModes.data());
@@ -765,8 +709,7 @@ protected:
     }
 
     // Lesson 13
-    void createLogicalDevice()
-    {
+    void createLogicalDevice() {
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -774,8 +717,7 @@ protected:
             {indices.graphicsFamily.value(), indices.presentFamily.value()};
 
         float queuePriority = 1.0f;
-        for (uint32_t queueFamily : uniqueQueueFamilies)
-        {
+        for (uint32_t queueFamily : uniqueQueueFamilies) {
             VkDeviceQueueCreateInfo queueCreateInfo{};
             queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
             queueCreateInfo.queueFamilyIndex = queueFamily;
@@ -805,8 +747,7 @@ protected:
 
         VkResult result = vkCreateDevice(physicalDevice, &createInfo, nullptr, &device);
 
-        if (result != VK_SUCCESS)
-        {
+        if (result != VK_SUCCESS) {
             PrintVkError(result);
             throw std::runtime_error("failed to create logical device!");
         }
@@ -817,8 +758,7 @@ protected:
     }
 
     // Lesson 14
-    void createSwapChain()
-    {
+    void createSwapChain() {
         SwapChainSupportDetails swapChainSupport =
             querySwapChainSupport(physicalDevice);
         VkSurfaceFormatKHR surfaceFormat =
@@ -830,8 +770,7 @@ protected:
         uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
 
         if (swapChainSupport.capabilities.maxImageCount > 0 &&
-            imageCount > swapChainSupport.capabilities.maxImageCount)
-        {
+            imageCount > swapChainSupport.capabilities.maxImageCount) {
             imageCount = swapChainSupport.capabilities.maxImageCount;
         }
 
@@ -848,14 +787,12 @@ protected:
         QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
         uint32_t queueFamilyIndices[] = {indices.graphicsFamily.value(),
                                          indices.presentFamily.value()};
-        if (indices.graphicsFamily != indices.presentFamily)
-        {
+        
+        if (indices.graphicsFamily != indices.presentFamily) {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
             createInfo.queueFamilyIndexCount = 2;
             createInfo.pQueueFamilyIndices = queueFamilyIndices;
-        }
-        else
-        {
+        } else {
             createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
             createInfo.queueFamilyIndexCount = 0;     // Optional
             createInfo.pQueueFamilyIndices = nullptr; // Optional
@@ -868,8 +805,7 @@ protected:
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
         VkResult result = vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain);
-        if (result != VK_SUCCESS)
-        {
+        if (result != VK_SUCCESS) {
             PrintVkError(result);
             throw std::runtime_error("failed to create swap chain!");
         }
@@ -887,28 +823,21 @@ protected:
 
     // Lesson 14
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(
-        const std::vector<VkSurfaceFormatKHR> &availableFormats)
-    {
-        for (const auto &availableFormat : availableFormats)
-        {
+        const std::vector<VkSurfaceFormatKHR> &availableFormats) {
+        for (const auto &availableFormat : availableFormats) {
             if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-                availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-            {
+                availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 return availableFormat;
             }
         }
-
         return availableFormats[0];
     }
 
     // Lesson 14
     VkPresentModeKHR chooseSwapPresentMode(
-        const std::vector<VkPresentModeKHR> &availablePresentModes)
-    {
-        for (const auto &availablePresentMode : availablePresentModes)
-        {
-            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
-            {
+        const std::vector<VkPresentModeKHR> &availablePresentModes) {
+        for (const auto &availablePresentMode : availablePresentModes) {
+            if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
                 return availablePresentMode;
             }
         }
@@ -918,12 +847,9 @@ protected:
     // Lesson 14
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
     {
-        if (capabilities.currentExtent.width != UINT32_MAX)
-        {
+        if (capabilities.currentExtent.width != UINT32_MAX) {
             return capabilities.currentExtent;
-        }
-        else
-        {
+        } else {
             int width, height;
             glfwGetFramebufferSize(window, &width, &height);
 
@@ -939,12 +865,10 @@ protected:
     }
 
     // Lesson 14
-    void createImageViews()
-    {
+    void createImageViews() {
         swapChainImageViews.resize(swapChainImages.size());
 
-        for (size_t i = 0; i < swapChainImages.size(); i++)
-        {
+        for (size_t i = 0; i < swapChainImages.size(); i++) {
             swapChainImageViews[i] = createImageView(swapChainImages[i],
                                                      swapChainImageFormat,
                                                      VK_IMAGE_ASPECT_COLOR_BIT, 1);
@@ -958,9 +882,7 @@ protected:
         VkImage image, VkFormat format,
         VkImageAspectFlags aspectFlags,
         uint32_t mipLevels // New in Lesson 23
-    )
-
-    {
+    ) {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = image;

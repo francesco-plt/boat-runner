@@ -1,4 +1,3 @@
-//#include "BoatRunner.hpp"
 #include "BoatRunner.hpp"
 #include <string>
 
@@ -17,10 +16,9 @@ struct UniformBufferObject
     alignas(16) glm::mat4 model;
 };
 
-class BoatRunner : public BaseProject
-{
+class BoatRunner : public BaseProject {
+// Vulkan objects
 protected:
-    // Vulkan objects
 
     // Descriptor Layouts
     DescriptorSetLayout DSLglobal;
@@ -67,7 +65,7 @@ protected:
 
         // Descriptor Layouts [what will be passed to the shaders]
         DSLobj.init(this, {
-            // this array contains the binding:
+            // this array contains the bindings:
             // first  element : the binding number
             // second element : the time of element (buffer or texture)
             // third  element : the pipeline stage where it will be used
@@ -98,7 +96,7 @@ protected:
         DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}});
     }
 
-    // Here you destroy all the objects you created!
+    // pretty self explanatory
     void localCleanup()
     {
         DS_Boat.cleanup();
@@ -120,9 +118,8 @@ protected:
         DSLobj.cleanup();
     }
 
-    // Here it is the creation of the command buffer:
-    // You send to the GPU all the objects you want to draw,
-    // with their buffers and textures
+    // Creation of the command buffer:
+    // Objects (+ buffers, textures) --> GPU
     void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage)
     {
 
@@ -172,8 +169,9 @@ protected:
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
     }
 
-    // Here is where you update the uniforms.
-    // Very likely this will be where you will be writing the logic of your application.
+    // TODO
+    // Uniform buffers are updated here, aka application logic
+    // for now those are placeholder settings
     void updateUniformBuffer(uint32_t currentImage)
     {
         static auto startTime = std::chrono::high_resolution_clock::now();
@@ -274,6 +272,8 @@ protected:
     }
 };
 
+// simple main to load
+// the project class
 int main()
 {
     BoatRunner app;
