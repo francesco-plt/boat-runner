@@ -2,7 +2,7 @@
 #include "BoatRunner.hpp"
 #include <string>
 
-const std::string MODEL_DIR = "models";
+const std::string MODEL_PATH = "models";
 const std::string TEXTURE_PATH = "textures";
 const std::string SHADERS_PATH = "shaders";
 
@@ -30,7 +30,7 @@ protected:
     Pipeline P1;
 
     // Models, Textures and Descriptors (values assigned to uniforms)
-    int mCount = 3;
+    int dsCount = 3;    // boat, rock1, rock2 (plus global set)
 
     Model M_Boat;
     Texture T_Boat;
@@ -56,9 +56,9 @@ protected:
         initialBackgroundColor = {1.0f, 1.0f, 1.0f, 1.0f};
 
         // Descriptor pool sizes
-        uniformBlocksInPool = mCount + 1;
-        texturesInPool = mCount;
-        setsInPool = mCount + 1;
+        uniformBlocksInPool = dsCount + 1;
+        texturesInPool = dsCount;
+        setsInPool = dsCount + 1;
     }
 
     // Load and setup of Vulkan objects
@@ -83,26 +83,17 @@ protected:
         P1.init(this, SHADERS_PATH + "/vert.spv", SHADERS_PATH + "/frag.spv", {&DSLglobal, &DSLobj});
 
         // Models, textures and Descriptors (values assigned to the uniforms)
-        M_Boat.init(this, MODEL_DIR + "/Boat.obj");
+        M_Boat.init(this, MODEL_PATH + "/Boat.obj");
+        M_Rock1.init(this, MODEL_PATH + "/Rock1.obj");
+        M_Rock2.init(this, MODEL_PATH + "/Rock2.obj");
+
         T_Boat.init(this, TEXTURE_PATH + "/Boat.bmp");
-        DS_Boat.init(this, &DSLobj, {
-            // the second parameter, is a pointer to the Uniform Set Layout of this set
-            // the last parameter is an array, with one element per binding of the set.
-            // first  element : the binding number
-            // second element : UNIFORM or TEXTURE (an enum) depending on the type
-            // third  element : only for UNIFORMs, the size of the corresponding C++ object
-            // fourth element : only for TEXTUREs, the pointer to the corresponding texture object
-            {0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-            {1, TEXTURE, 0, &T_Boat}
-        });
-
-        M_Rock1.init(this, MODEL_DIR + "/Rock1.obj");
         T_Rock1.init(this, TEXTURE_PATH + "/Rock1.png");
-        DS_Rock1.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Rock1}});
+        T_Rock2.init(this, TEXTURE_PATH + "/Rock2.jpg");
 
-        M_Rock1.init(this, MODEL_DIR + "/Rock2.obj");
-        T_Rock1.init(this, TEXTURE_PATH + "/Rock2.jpg");
-        DS_Rock1.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Rock2}});
+        DS_Boat.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Boat}});
+        DS_Rock1.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Rock1}});
+        DS_Rock2.init(this, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &T_Rock2}});
 
         DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}});
     }
@@ -151,7 +142,7 @@ protected:
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            P1.pipelineLayout, 0, 1, &DS_Boat.descriptorSets[currentImage],
+            P1.pipelineLayout, 1, 1, &DS_Boat.descriptorSets[currentImage],
             0, nullptr
         );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Boat.indices.size()), 1, 0, 0, 0);
@@ -163,7 +154,7 @@ protected:
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            P1.pipelineLayout, 0, 1, &DS_Rock1.descriptorSets[currentImage],
+            P1.pipelineLayout, 1, 1, &DS_Rock1.descriptorSets[currentImage],
             0, nullptr
         );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Rock1.indices.size()), 1, 0, 0, 0);
@@ -175,7 +166,7 @@ protected:
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
-            P1.pipelineLayout, 0, 1, &DS_Rock2.descriptorSets[currentImage],
+            P1.pipelineLayout, 1, 1, &DS_Rock2.descriptorSets[currentImage],
             0, nullptr
         );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
