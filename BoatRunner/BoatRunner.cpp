@@ -240,32 +240,38 @@ protected:
             glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
             glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
             glm::translate(glm::mat4(1.0), glm::vec3(-CamPos.x, -CamPos.y, -CamPos.z));
-        ;
 
         gubo.proj = glm::perspective(
             glm::radians(90.0f),
             swapChainExtent.width / (float)swapChainExtent.height,
-            0.1f, 10.0f);
+            0.1f, 10.0f
+        );
         gubo.proj[1][1] *= -1;
 
+        // global descriptor set
         vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
         memcpy(data, &gubo, sizeof(gubo));
         vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
 
         // Boat
         ubo.model = glm::mat4(1.0f);
+        ubo.model = glm::scale(ubo.model, glm::vec3(0.003f));
         vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
 
         // Rock1
         ubo.model = glm::mat4(1.0f);
+        ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, -1.0f));
+        ubo.model = glm::scale(ubo.model, glm::vec3(0.15f));
         vkMapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage]);
 
         // Rock2
         ubo.model = glm::mat4(1.0f);
+        ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 1.0f));
+        ubo.model = glm::scale(ubo.model, glm::vec3(0.15f));
         vkMapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage]);
