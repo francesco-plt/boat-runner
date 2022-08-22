@@ -46,10 +46,10 @@ protected:
 
     DescriptorSet DS_global;
 
-    glm::vec3 CamAng = glm::vec3(0.0f, 95.68f, 0.0f);
-    glm::vec3 CamPos = glm::vec3(0.0f, 1.0f, 1.0f);
-    glm::vec3 BoatPos = glm::vec3(0.0f, 0.0f, 0.0f);
-    float boatOffset = -0.1f;
+    // glm::vec3 CamAng = glm::vec3(0.0f, 95.68f, 0.0f);
+    // glm::vec3 CamPos = glm::vec3(0.0f, 1.0f, 1.0f);
+    // glm::vec3 BoatPos = glm::vec3(0.0f, 0.0f, 0.0f);
+    // float boatOffset = -0.1f;
     // glm::vec3 BoatPos = glm::vec3(1.65f, 1.5f + boatOffset, -0.1f + boatOffset);
 
     // application parameters
@@ -212,6 +212,7 @@ protected:
         float yawAngle = 90.0f;
 
         glm::vec3 pos;
+        glm::mat4 BoatPosition;
 
         // WASD input control
         // we want to move the boat and to modify the camera position
@@ -222,11 +223,11 @@ protected:
         {
             pos += MOVE_SPEED * CamOrientation["west"] * deltaT;
             // BoatPos = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
-            BoatPos -= MOVE_SPEED * glm::vec3(
-                glm::rotate(glm::mat4(1.0f),
-                CamAng.y,
-                glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)
-            );
+            // BoatPos -= MOVE_SPEED * glm::vec3(
+            //     glm::rotate(glm::mat4(1.0f),
+            //     CamAng.y,
+            //     glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)
+            // );
         }
         // east
         if (glfwGetKey(window, GLFW_KEY_D))
@@ -234,12 +235,12 @@ protected:
             pos += MOVE_SPEED * CamOrientation["east"] * deltaT;
             // BoatPos = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
 
-            BoatPos += MOVE_SPEED * glm::vec3(
-                glm::rotate(glm::mat4(1.0f),
-                CamAng.y,
-                glm::vec3(0.0f, 1.0f, 0.0f)) *
-                glm::vec4(1, 0, 0, 1)
-            );
+            // BoatPos += MOVE_SPEED * glm::vec3(
+            //     glm::rotate(glm::mat4(1.0f),
+            //     CamAng.y,
+            //     glm::vec3(0.0f, 1.0f, 0.0f)) *
+            //     glm::vec4(1, 0, 0, 1)
+            // );
         
         }
 
@@ -260,17 +261,24 @@ protected:
             }
         }
 
-        glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
-                           glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
-                           glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
+        // glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
+        //                    glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.x, glm::vec3(1.0f, 0.0f, 0.0f))) *
+        //                    glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.z, glm::vec3(0.0f, 0.0f, 1.0f)));
+
+        glm::mat4 CamMat = glm::mat4(1);
+		glm::vec3 CamPos = glm::vec3(0);
+        BoatPosition = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
+		CamPos = glm::vec3(BoatPosition * glm::vec4(0,0,0,1));
+        // now we move the camera up of a given factor
+        CamPos = CamPos + glm::vec3(0, 1.5f, 3.0f);
 
         UniformBufferObject ubo{};
         globalUniformBufferObject gubo{};
 
         gubo.view =
-            glm::rotate(glm::mat4(1.0), -CamAng.z, glm::vec3(0, 0, 1)) *
-            glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
-            glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
+            // glm::rotate(glm::mat4(1.0), -CamAng.z, glm::vec3(0, 0, 1)) *
+            // glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
+            // glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
             glm::translate(glm::mat4(1.0), glm::vec3(-CamPos.x, -CamPos.y, -CamPos.z));
         ;
 
@@ -289,14 +297,16 @@ protected:
 
         // Boat
         ubo.model = glm::mat4(1.0f);
-        ubo.model = 
-            glm::rotate(glm::mat4(1.0), -CamAng.z, glm::vec3(0, 0, 1)) *
-            glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
-            glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
-            glm::translate(glm::mat4(1.0), glm::vec3(-BoatPos.x, -BoatPos.y, -BoatPos.z));
-        ;
-        // ubo.model = glm::rotate(ubo.model, 90.0f, glm::vec3(0, 1, 0));
+        // ubo.model = 
+        //     glm::rotate(glm::mat4(1.0), -CamAng.z, glm::vec3(0, 0, 1)) *
+        //     glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
+        //     glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
+        //     glm::translate(glm::mat4(1.0), glm::vec3(-BoatPos.x, -BoatPos.y, -BoatPos.z));
+        // ;
+        // now we want to scale properly the boat and to rotate it of 180 degrees
         ubo.model = glm::scale(ubo.model, glm::vec3(0.003f));
+        ubo.model = BoatPosition * ubo.model;
+
         vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
