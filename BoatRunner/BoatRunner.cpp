@@ -1,5 +1,7 @@
 #include "BoatRunner.hpp"
 #include <string>
+#include <unordered_map>
+#include <glm/gtx/euler_angles.hpp>
 
 const std::string MODEL_PATH = "models";
 const std::string TEXTURE_PATH = "textures";
@@ -167,6 +169,55 @@ protected:
             0, nullptr
         );
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
+    }
+
+    // function to create world matrix from assignment 7
+    glm::mat4 eulerWM(glm::vec3 pos, glm::vec3 YPR)
+    {
+        glm::mat4 MEa = glm::eulerAngleYXZ(glm::radians(YPR.y), glm::radians(YPR.x), glm::radians(YPR.z));
+        return glm::translate(glm::mat4(1.0), pos) * MEa;
+    }
+
+    glm::mat4 updatePosition(GLFWwindow *window)
+    {
+        // just setting deltaT to check how much time has passed
+        // between getRobotWorldMatrix calls
+        static auto startTime = std::chrono::high_resolution_clock::now();
+        static float lastTime = 0.0f;
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+        float deltaT = time - lastTime;
+        lastTime = time;
+
+        float XSPEED = 1.1;							// > 1 -> faster, < 1 -> slower
+        float YSPEED = 1.8;							// > 1 -> faster, < 1 -> slower
+        float DIAGSPEED = 0.8;						// > 1 -> faster, < 1 -> slower
+        static glm::vec3 pos = glm::vec3(-3, 0, 2); // player position,
+                                                    // initialized randomly
+        static glm::mat4 out;						// robot world matrix I think
+
+        std::unordered_map<std::string, glm::vec3> CamDir;
+        CamDir["east"] = glm::vec3(1, 0, 0);
+        CamDir["west"] = glm::vec3(-1, 0, 0);
+
+        float yawAngle = 90.0f;
+
+        // WASD input control
+
+        // west
+        if (glfwGetKey(window, GLFW_KEY_A))
+        {
+            pos += XSPEED * CamDir["west"] * deltaT;
+            out = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
+        }
+        // east
+        if (glfwGetKey(window, GLFW_KEY_D))
+        {
+            pos += XSPEED * CamDir["east"] * deltaT;
+            out = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
+        }
+
+        return out;
     }
 
     // TODO

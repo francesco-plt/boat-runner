@@ -4,7 +4,7 @@ SHAD_DIR = ./shaders
 OUT_DIR = ./build
 CFLAGS = -std=c++17
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
-DBGFLAGS = -g -ggdb -glldb -Wall -Wextra
+DBGFLAGS = -g -ggdb -glldb
 
 $(PROJ_NAME): BoatRunner.cpp
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
