@@ -2,7 +2,7 @@ PROJ_NAME = "BoatRunner"
 INC = -I./headers
 SHAD_DIR = ./shaders
 OUT_DIR = ./build
-CFLAGS = -std=c++20
+CFLAGS = -std=c++17
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
 DBGFLAGS = -g -ggdb -glldb -Wall -Wextra
 
