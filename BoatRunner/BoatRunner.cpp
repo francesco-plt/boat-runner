@@ -46,6 +46,12 @@ protected:
 
     DescriptorSet DS_global;
 
+    glm::vec3 CamAng = glm::vec3(0.0f, 95.68f, 0.0f);
+    glm::vec3 CamPos = glm::vec3(0.0f, 1.0f, 1.0f);
+    glm::vec3 BoatPos = glm::vec3(0.0f, 0.0f, 0.0f);
+    float boatOffset = -0.1f;
+    // glm::vec3 BoatPos = glm::vec3(1.65f, 1.5f + boatOffset, -0.1f + boatOffset);
+
     // application parameters
     void setWindowParameters()
     {
@@ -178,103 +184,80 @@ protected:
         return glm::translate(glm::mat4(1.0), pos) * MEa;
     }
 
-    glm::mat4 updatePosition(GLFWwindow *window)
-    {
-        // just setting deltaT to check how much time has passed
-        // between getRobotWorldMatrix calls
-        static auto startTime = std::chrono::high_resolution_clock::now();
-        static float lastTime = 0.0f;
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        float deltaT = time - lastTime;
-        lastTime = time;
-
-        float XSPEED = 1.1;							// > 1 -> faster, < 1 -> slower
-        float YSPEED = 1.8;							// > 1 -> faster, < 1 -> slower
-        float DIAGSPEED = 0.8;						// > 1 -> faster, < 1 -> slower
-        static glm::vec3 pos = glm::vec3(-3, 0, 2); // player position,
-                                                    // initialized randomly
-        static glm::mat4 out;						// robot world matrix I think
-
-        std::unordered_map<std::string, glm::vec3> CamDir;
-        CamDir["east"] = glm::vec3(1, 0, 0);
-        CamDir["west"] = glm::vec3(-1, 0, 0);
-
-        float yawAngle = 90.0f;
-
-        // WASD input control
-
-        // west
-        if (glfwGetKey(window, GLFW_KEY_A))
-        {
-            pos += XSPEED * CamDir["west"] * deltaT;
-            out = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
-        }
-        // east
-        if (glfwGetKey(window, GLFW_KEY_D))
-        {
-            pos += XSPEED * CamDir["east"] * deltaT;
-            out = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
-        }
-
-        return out;
-    }
-
     // TODO
     // Uniform buffers are updated here, aka application logic
     // for now those are placeholder settings
     void updateUniformBuffer(uint32_t currentImage)
     {
         static auto startTime = std::chrono::high_resolution_clock::now();
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+		static float lastTime = 0.0f;
+		
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>
+					(currentTime - startTime).count();
+		float deltaT = time - lastTime;
+		lastTime = time;
+					
+		const float ROT_SPEED = glm::radians(60.0f);
+		const float MOVE_SPEED = 0.1f;
 
-        const float ROT_SPEED = glm::radians(1.0f);
-        const float MOVE_SPEED = 0.01f;
+		static float debounce = time;
 
-        if (glfwGetKey(window, GLFW_KEY_LEFT))
-        {
-            CamAng.y += ROT_SPEED * 1.0f;
-        }
+        static int state = 0;
 
-        if (glfwGetKey(window, GLFW_KEY_RIGHT))
-        {
-            CamAng.y -= ROT_SPEED * 1.0f;
-        }
+        std::unordered_map<std::string, glm::vec3> CamOrientation;
+        CamOrientation["east"] = glm::vec3(1, 0, 0);
+        CamOrientation["west"] = glm::vec3(-1, 0, 0);
 
-        if (glfwGetKey(window, GLFW_KEY_UP))
-        {
-            CamAng.x += ROT_SPEED * 1.0f;
-        }
+        float yawAngle = 90.0f;
 
-        if (glfwGetKey(window, GLFW_KEY_DOWN))
-        {
-            CamAng.x -= ROT_SPEED * 1.0f;
-        }
+        glm::vec3 pos;
 
+        // WASD input control
+        // we want to move the boat and to modify the camera position
+        // according to the boat position
+
+        // west
         if (glfwGetKey(window, GLFW_KEY_A))
         {
-            CamPos -= MOVE_SPEED * glm::vec3(
-                glm::rotate(glm::mat4(1.0f), CamAng.y,
-                glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1));
+            pos += MOVE_SPEED * CamOrientation["west"] * deltaT;
+            // BoatPos = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
+            BoatPos -= MOVE_SPEED * glm::vec3(
+                glm::rotate(glm::mat4(1.0f),
+                CamAng.y,
+                glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1)
+            );
         }
+        // east
         if (glfwGetKey(window, GLFW_KEY_D))
         {
-            CamPos += MOVE_SPEED * glm::vec3(
-                glm::rotate(glm::mat4(1.0f), CamAng.y,
-                glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(1, 0, 0, 1));
-        }
-        if (glfwGetKey(window, GLFW_KEY_S))
-        {
-            CamPos += MOVE_SPEED * glm::vec3(
-                glm::rotate(glm::mat4(1.0f), CamAng.y,
-                glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1));
-        }
-        if (glfwGetKey(window, GLFW_KEY_W))
-        {
-            CamPos -= MOVE_SPEED * glm::vec3(
+            pos += MOVE_SPEED * CamOrientation["east"] * deltaT;
+            // BoatPos = eulerWM(pos, glm::vec3(0.0f, yawAngle, 0.0f));
+
+            BoatPos += MOVE_SPEED * glm::vec3(
                 glm::rotate(glm::mat4(1.0f),
-                CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f)) * glm::vec4(0, 0, 1, 1));
+                CamAng.y,
+                glm::vec3(0.0f, 1.0f, 0.0f)) *
+                glm::vec4(1, 0, 0, 1)
+            );
+        
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_SPACE))
+        {
+            if (time - debounce > 0.33)
+            {
+                debounce = time;
+
+                if (state == 0)
+                {
+                    state = 1;
+                }
+                else
+                {
+                    state = 0;
+                }
+            }
         }
 
         glm::mat3 CamDir = glm::mat3(glm::rotate(glm::mat4(1.0f), CamAng.y, glm::vec3(0.0f, 1.0f, 0.0f))) *
@@ -284,20 +267,20 @@ protected:
         UniformBufferObject ubo{};
         globalUniformBufferObject gubo{};
 
-        void *data;
-
         gubo.view =
             glm::rotate(glm::mat4(1.0), -CamAng.z, glm::vec3(0, 0, 1)) *
             glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
             glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
             glm::translate(glm::mat4(1.0), glm::vec3(-CamPos.x, -CamPos.y, -CamPos.z));
+        ;
 
-        gubo.proj = glm::perspective(
-            glm::radians(90.0f),
-            swapChainExtent.width / (float)swapChainExtent.height,
-            0.1f, 10.0f
-        );
+        gubo.proj = glm::perspective(glm::radians(90.0f),
+                                     swapChainExtent.width / (float)swapChainExtent.height,
+                                     0.1f, 10.0f);
         gubo.proj[1][1] *= -1;
+		
+		void* data;
+        glm::vec3 initial;
 
         // global descriptor set
         vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
@@ -306,6 +289,13 @@ protected:
 
         // Boat
         ubo.model = glm::mat4(1.0f);
+        ubo.model = 
+            glm::rotate(glm::mat4(1.0), -CamAng.z, glm::vec3(0, 0, 1)) *
+            glm::rotate(glm::mat4(1.0), -CamAng.x, glm::vec3(1, 0, 0)) *
+            glm::rotate(glm::mat4(1.0), -CamAng.y, glm::vec3(0, 1, 0)) *
+            glm::translate(glm::mat4(1.0), glm::vec3(-BoatPos.x, -BoatPos.y, -BoatPos.z));
+        ;
+        // ubo.model = glm::rotate(ubo.model, 90.0f, glm::vec3(0, 1, 0));
         ubo.model = glm::scale(ubo.model, glm::vec3(0.003f));
         vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
