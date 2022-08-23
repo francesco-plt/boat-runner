@@ -11,13 +11,8 @@ $(PROJ_NAME): BoatRunner.cpp
 	glslc -o $(SHAD_DIR)/vert.spv $(SHAD_DIR)/shader.vert
 	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
-.PHONY: test clean
-
-test: $(PROJ_NAME)
-	./build/$(PROJ_NAME)
-
 build:
-	g++ $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
+	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 shad:
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag

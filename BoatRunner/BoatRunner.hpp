@@ -293,10 +293,7 @@ protected:
     int texturesInPool;
     int setsInPool;
 
-    // Initial camera position and angles
-    glm::vec3 CamAng = glm::vec3(0.0f, 95.68f, 0.0f);
-    glm::vec3 CamPos = glm::vec3(1.65f, 1.5f, -0.1f);
-
+    
     VkResult result;
 
     // Lesson 12
