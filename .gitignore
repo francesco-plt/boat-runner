@@ -1,4 +1,5 @@
 .DS_Store
 .vscode
 BoatRunner/build/*
+BoatRunner/shaders/*.spv
 *.exe
