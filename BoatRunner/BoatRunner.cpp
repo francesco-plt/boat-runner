@@ -30,13 +30,16 @@ static const float camDelta = 4.0f;
 enum status : int { pause = 0, play = 1 };
 
 // Other variables
+static const glm::vec3 origin = glm::vec3(0, 0, 0);
 static const glm::mat4 I = glm::mat4(1.0f);           // Identity matrix
 static const glm::vec3 xAxis = glm::vec3(1, 0, 0);    // x axis
 static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 static const int whRes = 1000;                        // window horizontal resolution
-static const float boatScalingFactor = 0.003f;        // scaling factor for boat model
 static const float moveSpeed = 0.01;                  // boat motion speed multiplier
+static const float rotSpeed = glm::radians(1.0f);     // camera rotation speed multiplier
+static const glm::vec3 boatScalingFactor =            // scaling factor for boat model
+    glm::vec3(0.0009f);
 
 // direction vectors
 unordered_map<string, glm::vec4> dirs({
@@ -58,7 +61,8 @@ UniformBufferObject e globalUniformBufferObject
 */
 
 class BoatRunner : public BaseProject {
- protected:
+    protected:
+
     // Descriptor Layouts
     DescriptorSetLayout DSLglobal;
     DescriptorSetLayout DSLobj;
@@ -66,7 +70,8 @@ class BoatRunner : public BaseProject {
     // Pipelines
     Pipeline P1;
 
-    // Models, Textures and Descriptors (values assigned to uniforms)
+    // Models, Textures and Descriptor sets (values assigned to uniforms)
+
     int dsCount = 3;    // boat, rock1, rock2 (plus global set)
 
     Model M_Boat;
@@ -83,12 +88,22 @@ class BoatRunner : public BaseProject {
 
     DescriptorSet DS_global;
 
-    // Starting position variables which will be updated during the game
-    // boat in the origin for simplicity
+
+    // Starting position variables
+
+    // Boat in the origin for simplicity
     glm::vec3 boatPos = glm::vec3(0, 0, 0);
-    // and camera a little bit above and behind the boat
-    // to be able to see it
+
+    // Camera a little bit above and behind
+    // the boat to be able to see it
     glm::vec3 camPos = boatPos + glm::vec3(0.0f, camDelta / 2, camDelta / 2);
+    // And camera pointing at the boat
+    glm::vec3 camDir = glm::normalize(boatPos - camPos);
+
+    // Debug variables
+    glm::vec3 camLogPos;
+    glm::vec3 camLogDir;
+    glm::vec3 boatLogPos;
 
     // application parameters:
     // Window size, titile and initial background
@@ -125,8 +140,6 @@ class BoatRunner : public BaseProject {
         // on..
         P1.init(this, SHADERS_PATH + "/vert.spv", SHADERS_PATH + "/frag.spv", {&DSLglobal, &DSLobj});
 
-        cout << "Pipeline created" << "\n";
-
         // Models, textures and Descriptors (values assigned to the uniforms)
         M_Boat.init(this, MODEL_PATH + "/Boat.obj");
         M_Rock1.init(this, MODEL_PATH + "/Rock1.obj");
@@ -137,14 +150,14 @@ class BoatRunner : public BaseProject {
         T_Rock2.init(this, TEXTURE_PATH + "/Rock2.jpg");
 
         DS_Boat.init(this, &DSLobj,
-                                 {{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-                                    {1, TEXTURE, 0, &T_Boat}});
+            {{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+            {1, TEXTURE, 0, &T_Boat}});
         DS_Rock1.init(this, &DSLobj,
-                                    {{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-                                     {1, TEXTURE, 0, &T_Rock1}});
+            {{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+            {1, TEXTURE, 0, &T_Rock1}});
         DS_Rock2.init(this, &DSLobj,
-                                    {{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-                                     {1, TEXTURE, 0, &T_Rock2}});
+            {{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+            {1, TEXTURE, 0, &T_Rock2}});
 
         DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}});
     }
@@ -209,73 +222,44 @@ class BoatRunner : public BaseProject {
     // Very likely this will be where you will be writing the logic of your
     // application.
     void updateUniformBuffer(uint32_t currentImage) {
-        UniformBufferObject gubo{};
+        
         UniformBufferObject ubo{};
         void *data;
 
-        // Boat and camera position update
-        glm::vec3 posDelta = updatePosition(window);
-        boatPos += posDelta;
-        camPos += posDelta;
+        // Positions updates
+        updatePosition(window);
+        
+
         // Checking that new values are legal
         boatPos = ensurePosLimits(boatPos);
         camPos = ensurePosLimits(camPos);
 
+        // Printing the new values for debug purposes
+        debugCoord(camPos, camLogPos, "Camera Position");
+        debugCoord(boatPos, boatLogPos, "Boat Position");
+        debugCoord(camDir, camLogDir, "Boat Position");
 
-        // ubo.model = glm::scale(glm::mat4(1.0f), glm::vec3(0.1, 0.1, 0.1)) * glm::translate(glm::mat4(1.0f), boatPos) * glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-		// ubo.view = glm::lookAt(glm::vec3(0.0f, 2.0f, 3.0f),
-		// 								   glm::vec3(0.0f, 0.0f, 0.0f),
-		// 								   glm::vec3(0.0f, 0.0f, 1.0f));
-		// ubo.proj = glm::perspective(glm::radians(45.0f),
-		// 										swapChainExtent.width / (float)swapChainExtent.height,
-		// 										0.1f, 10.0f);
-		// ubo.proj[1][1] *= -1;
+        // updating camera buffer
+        ubo.model = glm::mat4(1.0f);
+        ubo.view = glm::lookAt(camPos, camPos + camDir, glm::vec3(0.0f, 1.0f, 0.0f));
+            
+        // ubo.view = glm::translate(I, glm::normalize(boatPos - camPos));
+        ubo.proj = computePerspective();
+        ubo.proj[1][1] *= -1;
 
-        // vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
-        // memcpy(data, &ubo, sizeof(ubo));
-        // vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
-
-        // // cameraPos = global_pos_drone + glm::vec3(0.0f, 0.0f, deltaHeight);
-        
-        // gubo.model *= LookInDirMat(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f));
-        // gubo.view = LookAtMat(glm::vec3(0.0f, 0.0f, camDelta), glm::vec3(0.0f));
-
-        // vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
-        // memcpy(data, &gubo, sizeof(gubo));
-        // vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
-
-
-        // Uniform buffer objects update (Camera, Boat, Rock1, Rock2)
-
-        // 1. Camera
-
-        // camera position (gubo.model) (?)
-        gubo.model = glm::translate(glm::mat4(1.0f), camPos);
-        // camera orientation (gubo.view) (?)
-        gubo.view = glm::mat4(1);
-        gubo.view = LookAtMat(camPos, boatPos);
-        // camera projection (gubo.proj) - do not change
-        gubo.proj = computePerspective();
-        gubo.proj[1][1] *= -1;
-
-        vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
-        memcpy(data, &gubo, sizeof(gubo));
+        vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+        memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
 
         // 2. Boat
-
-        // boat position (ubo.model)
-        ubo.model = glm::translate(glm::mat4(1.0f), boatPos);
-        ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        ubo.model = glm::scale(ubo.model, glm::vec3(boatScalingFactor));
+        ubo.model = glm::translate(I, boatPos);
+        ubo.model = glm::scale(ubo.model, boatScalingFactor);
 
         vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
 
-        /*
-        Note: random position values for now
-        */
+        /* Note: random position values for now */
         // 3. Rock1
 
         ubo.model = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 1.04422f, 0.0f));
@@ -292,9 +276,13 @@ class BoatRunner : public BaseProject {
         vkMapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
         memcpy(data, &ubo, sizeof(ubo));
         vkUnmapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage]);
+
+        camLogPos = camPos;
+        camLogDir = camDir;
+        boatLogPos = boatPos;
     }
 
-    glm::vec3 updatePosition(GLFWwindow *window) {
+    void updatePosition(GLFWwindow *window) {
         static auto startTime = chrono::high_resolution_clock::now();
         auto currentTime = chrono::high_resolution_clock::now();
         float time = chrono::duration<float, chrono::seconds::period>(currentTime - startTime).count();
@@ -302,24 +290,46 @@ class BoatRunner : public BaseProject {
         float deltaT = time - lastTime;
         lastTime = time;
 
+        glm::vec3 posDelta = glm::vec3(0.0f);
+        glm::vec3 dirDelta = glm::vec3(0.0f);
 
         if (glfwGetKey(window, GLFW_KEY_A)) {
-            return computePos("west", deltaT);
+            posDelta = computePos("west", deltaT);
         }
 
         if (glfwGetKey(window, GLFW_KEY_D)) {
-            return computePos("east", deltaT);
+            posDelta = computePos("east", deltaT);
         }
 
         if (glfwGetKey(window, GLFW_KEY_W)) {
-            return computePos("north", deltaT);
+            posDelta = computePos("north", deltaT);
         }
 
         if (glfwGetKey(window, GLFW_KEY_S)) {
-            return computePos("south", deltaT);
+            posDelta = computePos("south", deltaT);
         }
         
-        return glm::vec3(0.0f);
+        boatPos += posDelta;
+        camPos += posDelta;
+
+        if (glfwGetKey(window, GLFW_KEY_LEFT)) {
+            camDir.y += rotSpeed * 1.0f;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_RIGHT))
+        {
+            camDir.y -= rotSpeed * 1.0f;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_UP))
+        {
+            camDir.x += rotSpeed * 1.0f;
+        }
+
+        if (glfwGetKey(window, GLFW_KEY_DOWN))
+        {
+            camDir.x -= rotSpeed * 1.0f;
+        }
     }
 
     glm::vec3 ensurePosLimits(glm::vec3 pos) {
@@ -340,7 +350,7 @@ class BoatRunner : public BaseProject {
         return moveSpeed * glm::vec3(glm::rotate(I, 0.0f, yAxis) * dir) * deltaT;
     }
 
-    // to avoid redundant code while computing gubo.proj
+    // to avoid redundant code while computing ubo.proj
     glm::mat4 computePerspective() {
         return glm::perspective(
             glm::radians(45.0f),
@@ -363,6 +373,14 @@ class BoatRunner : public BaseProject {
             glm::rotate(glm::mat4(1.0), -Angs.y, glm::vec3(1, 0, 0)) *
             glm::rotate(glm::mat4(1.0), -Angs.x, glm::vec3(0, 1, 0)) *
             glm::translate(glm::mat4(1.0), -Pos);
+    }
+
+    void debugCoord(glm::vec3 newPos, glm::vec3 oldPos, string id) {
+        if(newPos != oldPos) {
+            cout << "\nVariable " << id << " updated: (" <<
+                oldPos.x << ", " << oldPos.y << ", " << oldPos.z << ") -> ("
+                << newPos.x << ", " << newPos.y << ", " << newPos.z << ")" << endl;
+        }
     }
 
     // pretty self explanatory
@@ -398,7 +416,5 @@ int main() {
         cerr << e.what() << endl;
         return EXIT_FAILURE;
     }
-
-    cout << "Exiting..." << endl;
     return EXIT_SUCCESS;
 }
