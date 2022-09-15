@@ -1,6 +1,6 @@
 #version 450
 
-layout(set = 1, binding = 1) uniform sampler2D texSampler;
+layout(set=1, binding = 1) uniform sampler2D texSampler;
 
 layout(location = 0) in vec3 fragViewDir;
 layout(location = 1) in vec3 fragNorm;
@@ -19,7 +19,7 @@ void main() {
 	vec3 V = normalize(fragViewDir);
 	
 	// Lambert diffuse
-	vec3 diffuse  = diffColor * max(dot(N,L), 0.0f) * 1.5;
+	vec3 diffuse  = diffColor * max(dot(N,L), 0.0f) * 1.5f;
 	// Phong specular
 	vec3 specular = specColor * pow(max(dot(R,V), 0.0f), specPower);
 	// Hemispheric ambient
