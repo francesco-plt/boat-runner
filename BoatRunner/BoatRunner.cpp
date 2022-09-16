@@ -4,6 +4,7 @@ using namespace std;
 
 #include <cmath>
 #include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/epsilon.hpp>
 #include <string>
 #include <unordered_map>
 
@@ -23,13 +24,19 @@ static const glm::vec3 xAxis = glm::vec3(1, 0, 0);    // x axis
 static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
-static const float speedFactor = 30.0;                  // boat motion speed multiplier
-static const float rotationFactor = glm::radians(1.0f);     // camera rotation speed multiplier
-static const glm::vec3 boatScalingFactor = glm::vec3(0.003f);            // initial boat position
-static const glm::vec3 initialCameraPosition = glm::vec3(0.0f, 2.0f, -2.0f); // initial camera position
-static const glm::vec3 initialCameraDirection = glm::vec3(0.0f, 0.0f, 0.0f); // initial camera direction
-static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f); // initial boat position
-static const float FoV = glm::radians(85.0f);         // field of view
+static const float speedFactorConstant = 30.0f;
+static const float fwdSpeedFactorConstant = 0.1f;
+static const glm::vec3 boatScalingFactor = glm::vec3(0.005f);
+static const glm::vec3 rock1scalingFactor = glm::vec3(0.09f);
+static const glm::vec3 rock2scalingFactor = glm::vec3(0.1f);
+static const float FoV = glm::radians(120.0f);
+
+static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.0f, -2.0f);
+static const glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
+static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+static const glm::vec3 initialRock1Position = glm::vec3(0.0f, 0.0f, -15.0f);
+static const glm::vec3 initialRock2Position = glm::vec3(0.0f, 0.0f, 10.0f);
+
 
 struct globalUniformBufferObject {
 	alignas(16) glm::mat4 view;
@@ -40,8 +47,6 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
 
-
-// MAIN ! 
 class BoatRunner : public BaseProject {
 	protected:
 	// Here you list all the Vulkan objects you need:
@@ -70,10 +75,12 @@ class BoatRunner : public BaseProject {
 	
 	DescriptorSet DS_global;
 
-	glm::vec3 cameraPosition = initialCameraPosition;
-	glm::vec3 cameraDirection = initialCameraDirection;
-	glm::vec3 boatPosition = initialBoatPosition;
+	glm::vec3 boatPosition;
+	glm::vec3 rock1Position;
+	glm::vec3 rock2Position;
 
+	float boatSpeedFactor;
+	float rockSpeedFactor;
 	
 	// application parameters:
     // Window size, titile and initial background
@@ -230,13 +237,19 @@ class BoatRunner : public BaseProject {
 	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
 		static auto startTime = std::chrono::high_resolution_clock::now();
-		auto currentTime = std::chrono::high_resolution_clock::now();
-		float time = std::chrono::duration<float, std::chrono::seconds::period>
-					(currentTime - startTime).count();
-		static float lastTime = 0.0f;
-		float deltaT = time - lastTime;
+        static float lastTime = 0.0f;
+
+		if(lastTime == 0.0f) {
+			initGame();
+		}
+        
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period> (currentTime - startTime).count();
+        float deltaT = time - lastTime;
+        lastTime = time;
 
 		updatePosition(deltaT);
+		detectCollisions();
 					
 		globalUniformBufferObject gubo{};
 		UniformBufferObject ubo{};
@@ -252,32 +265,23 @@ class BoatRunner : public BaseProject {
 		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
 		
 
-		// Boat 
+		// Boat
 		ubo.model = I;
-		// align the model to the camera
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);
-		// scale the model
-		ubo.model = glm::scale(ubo.model, boatScalingFactor);
-		// boat oscillation
-		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), xAxis);
-		
-		ubo.model = glm::translate(ubo.model, boatPosition);
+		ubo.model = glm::scale(ubo.model, boatScalingFactor);	// scale the model
+		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), xAxis);	// boat oscillation
+		ubo.model = glm::translate(ubo.model, boatPosition);	// translating boat according to players input
 		
 		vkMapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
 
-		glm::vec3 rock1scalingFactor = glm::vec3(0.125f);
-		glm::vec3 rock2scalingFactor = glm::vec3(0.33f);
-		glm::vec3 rock1Displacement = glm::vec3(10.0f, 0.0f, 0.0f);
-		glm::vec3 rock2Displacement = glm::vec3(5.0f, 0.0f, 0.0f);
-
 		// Rock 1
 		ubo.model = I;
-		// scale the model
 		ubo.model = glm::scale(ubo.model, rock1scalingFactor);
-		// rock position same as bot with negative x displacement
-		ubo.model = glm::translate(ubo.model, -rock1Displacement);
+		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		ubo.model = glm::translate(ubo.model, rock1Position);
+
 		vkMapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage]);
@@ -285,21 +289,47 @@ class BoatRunner : public BaseProject {
 		// Rock 2
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, rock2scalingFactor);
-		// rock position same as bot with positive x displacement
-		ubo.model = glm::translate(ubo.model, rock2Displacement);
-		vkMapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage], 0,
-							sizeof(ubo), 0, &data);
+		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		ubo.model = glm::translate(ubo.model, rock2Position);
+
+		vkMapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage]);
 	}
 
 	void updatePosition(float deltaT) {
+
+		// rock1Position.x += rockSpeedFactor;
+		// rock2Position.x += rockSpeedFactor;
+
 		if (glfwGetKey(window, GLFW_KEY_A)) {
-			boatPosition.z += speedFactor;
+			// boatPosition.z += boatSpeedFactor;
+			boatPosition.z += 1.0f;
 		}
 		if (glfwGetKey(window, GLFW_KEY_D)) {
-			boatPosition.z -= speedFactor;
+			boatPosition.z -= 1.0f;
 		}
+	}
+
+	void detectCollisions() {
+
+		std::cout << "Boat Position: " << glm::to_string(boatPosition) << std::endl;
+		std::cout << "Rock1 Position: " << glm::to_string(rock1Position) << std::endl;
+		std::cout << "Rock2 Position: " << glm::to_string(rock2Position) << std::endl;
+
+		if(glm::all(glm::equal(boatPosition, rock1Position)) || glm::all(glm::equal(boatPosition, rock2Position))) {
+			std::cout << "Collision detected! Restarting game..." << std::endl;
+			initGame();
+		}
+	}
+
+	void initGame() {
+		boatPosition = initialBoatPosition;
+		rock1Position = initialRock1Position;
+		rock2Position = initialRock2Position;
+
+		boatSpeedFactor = speedFactorConstant;
+		rockSpeedFactor = fwdSpeedFactorConstant;
 	}
 };
 
