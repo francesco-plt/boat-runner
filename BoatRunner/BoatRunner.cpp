@@ -12,6 +12,16 @@ using namespace std;
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/hash.hpp>
 
+#include <vector>
+
+#define rocksNum 30
+#define limitNorth -160
+#define limitSouth 30
+#define limitZ 50
+#define deltaNorth 60
+#define boatWidth 20
+#define boatLength 20
+
 // Asset paths
 static const string MODEL_PATH = "models";
 static const string TEXTURE_PATH = "textures";
@@ -27,16 +37,13 @@ static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 static const float speedFactorConstant = 30.0f;
 static const float fwdSpeedFactorConstant = 0.1f;
 static const glm::vec3 boatScalingFactor = glm::vec3(0.005f);
-static const glm::vec3 rock1scalingFactor = glm::vec3(0.09f);
-static const glm::vec3 rock2scalingFactor = glm::vec3(0.1f);
-static const float FoV = glm::radians(120.0f);
+static const glm::vec3 rock1scalingFactor = glm::vec3(0.3f);
+static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
+static const float FoV = glm::radians(90.0f);
 
 static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.0f, -2.0f);
 static const glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
 static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-static const glm::vec3 initialRock1Position = glm::vec3(0.0f, 0.0f, -15.0f);
-static const glm::vec3 initialRock2Position = glm::vec3(0.0f, 0.0f, 10.0f);
-
 
 struct globalUniformBufferObject {
 	alignas(16) glm::mat4 view;
@@ -45,6 +52,13 @@ struct globalUniformBufferObject {
 
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
+};
+
+struct RockStruct {
+	DescriptorSet DS_Rock;
+	glm::vec3 pos;
+	glm::vec3 rot;
+	int id;
 };
 
 class BoatRunner : public BaseProject {
@@ -58,7 +72,7 @@ class BoatRunner : public BaseProject {
 	// Pipelines [Shader couples]
 	Pipeline P1;
 
-	int dsCount = 3;    // boat, rock1, rock2 (plus global set)
+	int dsCount = 1;    // boat, rock1, rock2 (plus global set)
 
 	// Models, textures and Descriptors (values assigned to the uniforms)
 	Model M_Boat;
@@ -67,17 +81,16 @@ class BoatRunner : public BaseProject {
 
 	Model M_Rock1;
 	Texture T_Rock1;
-	DescriptorSet DS_Rock1;	// instance DSLobj
 
 	Model M_Rock2;
 	Texture T_Rock2;
-	DescriptorSet DS_Rock2;	// instance DSLobj
+
+	vector<RockStruct> rocks1;
+	vector<RockStruct> rocks2;
 	
 	DescriptorSet DS_global;
 
 	glm::vec3 boatPosition;
-	glm::vec3 rock1Position;
-	glm::vec3 rock2Position;
 
 	float boatSpeedFactor;
 	float rockSpeedFactor;
@@ -92,9 +105,9 @@ class BoatRunner : public BaseProject {
         initialBackgroundColor = {1.0f, 1.0f, 1.0f, 1.0f};
 
         // Descriptor pool sizes
-        uniformBlocksInPool = dsCount + 1;
-        texturesInPool = dsCount;
-        setsInPool = dsCount + 1;
+        uniformBlocksInPool = dsCount + rocksNum * 2 + 1;
+        texturesInPool = dsCount + rocksNum * 2;
+        setsInPool = dsCount + rocksNum * 2 + 1;
     }
 	
 	// Here you load and setup all your Vulkan objects
@@ -134,18 +147,31 @@ class BoatRunner : public BaseProject {
 
 		M_Rock1.init(this, MODEL_PATH + "/Rock1.obj");
 		T_Rock1.init(this, TEXTURE_PATH + "/Rock1.png");
-		DS_Rock1.init(this, &DSLobj, {
-					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-					{1, TEXTURE, 0, &T_Rock1}
-		});
 
+		for(int i = 0; i < rocksNum; i++) {
+			RockStruct rock;
+			rock.DS_Rock.init(this, &DSLobj, {
+						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+						{1, TEXTURE, 0, &T_Rock1}
+			});
+			rock.pos = glm::vec3(rand() % (limitNorth * 2 + 1) - limitNorth, 0, rand() % (limitZ * 2 + 1) - limitZ);
+			rock.id = i;
+			rocks1.push_back(rock);
+		}
 
 		M_Rock2.init(this, MODEL_PATH + "/Rock2.obj");
 		T_Rock2.init(this, TEXTURE_PATH + "/Rock2.jpg");
-		DS_Rock2.init(this, &DSLobj, {
-					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-					{1, TEXTURE, 0, &T_Rock2}
-		});
+
+		for(int i = 0; i < rocksNum; i++) {
+			RockStruct rock;
+			rock.DS_Rock.init(this, &DSLobj, {
+						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+						{1, TEXTURE, 0, &T_Rock2}
+			});
+			rock.pos = glm::vec3(rand() % (limitNorth * 2 + 1) - limitNorth, 0, rand() % (limitZ * 2 + 1) - limitZ);
+			rock.id = rocksNum + i;
+			rocks2.push_back(rock);
+		}
 
 		DS_global.init(this, &DSLglobal, {
 					{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}
@@ -158,13 +184,19 @@ class BoatRunner : public BaseProject {
 		T_Boat.cleanup();
 		M_Boat.cleanup();
 
-		DS_Rock1.cleanup();
 		T_Rock1.cleanup();
 		M_Rock1.cleanup();
 		
-		DS_Rock2.cleanup();
 		M_Rock2.cleanup();
 		T_Rock2.cleanup();
+
+		for(int i = 0; i < rocksNum; i++) {
+			rocks1[i].DS_Rock.cleanup();
+		}
+
+		for(int i = 0; i < rocksNum; i++) {
+			rocks2[i].DS_Rock.cleanup();
+		}
 
 		DS_global.cleanup();
 
@@ -205,32 +237,33 @@ class BoatRunner : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(M_Boat.indices.size()), 1, 0, 0, 0);
 
-
 		VkBuffer vertexBuffers2[] = {M_Rock1.vertexBuffer};
 		VkDeviceSize offsets2[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers2, offsets2);
 		vkCmdBindIndexBuffer(commandBuffer, M_Rock1.indexBuffer, 0,
 								VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(commandBuffer,
-						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 1, 1, &DS_Rock1.descriptorSets[currentImage],
-						0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-					static_cast<uint32_t>(M_Rock1.indices.size()), 1, 0, 0, 0);
-
-
 
 		VkBuffer vertexBuffers3[] = {M_Rock2.vertexBuffer};
 		VkDeviceSize offsets3[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers3, offsets3);
 		vkCmdBindIndexBuffer(commandBuffer, M_Rock2.indexBuffer, 0,
 								VK_INDEX_TYPE_UINT32);
-		vkCmdBindDescriptorSets(commandBuffer,
-						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 1, 1, &DS_Rock2.descriptorSets[currentImage],
-						0, nullptr);
-		vkCmdDrawIndexed(commandBuffer,
-					static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
+		
+		for(int i = 0; i < rocksNum; i++) {
+			vkCmdBindDescriptorSets(commandBuffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,
+							P1.pipelineLayout, 1, 1, &rocks1[i].DS_Rock.descriptorSets[currentImage],
+							0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+						static_cast<uint32_t>(M_Rock1.indices.size()), 1, 0, 0, 0);
+						
+			vkCmdBindDescriptorSets(commandBuffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,
+							P1.pipelineLayout, 1, 1, &rocks2[i].DS_Rock.descriptorSets[currentImage],
+							0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+						static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
+		}
 	}
 
 	// Here is where you update the uniforms.
@@ -256,7 +289,7 @@ class BoatRunner : public BaseProject {
 		
 		void* data;
 
-		gubo.view = glm::lookAt(cameraPosition, cameraDirection, yAxis);
+		gubo.view = glm::lookAt(cameraPosition, cameraDirection, glm::vec3(0, 2, 0));
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
 		gubo.proj[1][1] *= -1;
 
@@ -276,34 +309,46 @@ class BoatRunner : public BaseProject {
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, DS_Boat.uniformBuffersMemory[0][currentImage]);
 
-		// Rock 1
-		ubo.model = I;
-		ubo.model = glm::scale(ubo.model, rock1scalingFactor);
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
-		ubo.model = glm::translate(ubo.model, rock1Position);
+		for(int i = 0; i < rocksNum; i++) {
+			ubo.model = I;
+			ubo.model = glm::scale(ubo.model, rock1scalingFactor);
+			ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0, 1, 0));
+			ubo.model = glm::translate(ubo.model, rocks1[i].pos);
+			ubo.model = glm::rotate(ubo.model, glm::radians(360.0f), rocks1[i].rot);
 
-		vkMapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(device, DS_Rock1.uniformBuffersMemory[0][currentImage]);
+			vkMapMemory(device, rocks1[i].DS_Rock.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+			memcpy(data, &ubo, sizeof(ubo));
+			vkUnmapMemory(device, rocks1[i].DS_Rock.uniformBuffersMemory[0][currentImage]);
 
-		// Rock 2
-		ubo.model = I;
-		ubo.model = glm::scale(ubo.model, rock2scalingFactor);
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
-		ubo.model = glm::translate(ubo.model, rock2Position);
+			ubo.model = I;
+			ubo.model = glm::scale(ubo.model, rock2scalingFactor);
+			ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0, 1, 0));
+			ubo.model = glm::translate(ubo.model, rocks2[i].pos);
+			ubo.model = glm::rotate(ubo.model, glm::radians(360.0f), rocks2[i].rot);
 
-		vkMapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
-		memcpy(data, &ubo, sizeof(ubo));
-		vkUnmapMemory(device, DS_Rock2.uniformBuffersMemory[0][currentImage]);
+			vkMapMemory(device, rocks2[i].DS_Rock.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+			memcpy(data, &ubo, sizeof(ubo));
+			vkUnmapMemory(device, rocks2[i].DS_Rock.uniformBuffersMemory[0][currentImage]);
+		}
 	}
 
 	void updatePosition(float deltaT) {
-
-		// rock1Position.x += rockSpeedFactor;
-		// rock2Position.x += rockSpeedFactor;
+		for(int i = 0; i < rocksNum; i++) {
+			rocks1[i].pos.x += rockSpeedFactor;
+			if(rocks1[i].pos.x > limitSouth) {
+				rocks1[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
+				rocks1[i].pos.z = rand() % (limitZ * 2 + 1) - limitZ;
+				rocks1[i].rot = glm::vec3(((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1);
+			}
+			rocks2[i].pos.x += rockSpeedFactor;
+			if(rocks2[i].pos.x > limitSouth) {
+				rocks2[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
+				rocks2[i].pos.z = rand() % (limitZ * 2 + 1) - limitZ;
+				rocks2[i].rot = glm::vec3(((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1);
+			}
+		}
 
 		if (glfwGetKey(window, GLFW_KEY_A)) {
-			// boatPosition.z += boatSpeedFactor;
 			boatPosition.z += 1.0f;
 		}
 		if (glfwGetKey(window, GLFW_KEY_D)) {
@@ -311,25 +356,43 @@ class BoatRunner : public BaseProject {
 		}
 	}
 
+	glm::vec3 oldBoatPos = initialBoatPosition;
+
 	void detectCollisions() {
-
-		std::cout << "Boat Position: " << glm::to_string(boatPosition) << std::endl;
-		std::cout << "Rock1 Position: " << glm::to_string(rock1Position) << std::endl;
-		std::cout << "Rock2 Position: " << glm::to_string(rock2Position) << std::endl;
-
-		if(glm::all(glm::equal(boatPosition, rock1Position)) || glm::all(glm::equal(boatPosition, rock2Position))) {
-			std::cout << "Collision detected! Restarting game..." << std::endl;
-			initGame();
+		if(!glm::all(glm::equal(boatPosition, oldBoatPos))) {
+			std::cout << "Boat Position: " << glm::to_string(boatPosition) << std::endl;
+			oldBoatPos = boatPosition;
+		}
+		for(int i = 0; i < rocksNum; i++) {
+			if(rocks1[i].pos.x <= boatPosition.x + boatLength / 2 && rocks1[i].pos.x >= boatPosition.x - boatLength / 2) {
+				if(rocks1[i].pos.z <= boatPosition.z + boatWidth / 2 && rocks1[i].pos.z >= boatPosition.z - boatWidth / 2) {
+					printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\nRestarting the game\n", rocks1[i].pos.x, rocks1[i].pos.y, rocks1[i].pos.z, rocks1[i].id);
+					initGame();
+				}
+			}
+			if(rocks2[i].pos.x <= boatPosition.x + boatLength / 2 && rocks2[i].pos.x >= boatPosition.x - boatLength / 2) {
+				if(rocks2[i].pos.z <= boatPosition.z + boatWidth / 2 && rocks2[i].pos.z >= boatPosition.z - boatWidth / 2) {
+					printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\nRestarting the game\n", rocks2[i].pos.x, rocks2[i].pos.y, rocks2[i].pos.z, rocks2[i].id);
+					initGame();
+				}
+			}
+			/*
+			if(glm::all(glm::equal(boatPosition, rocks1[i].pos)) || glm::all(glm::equal(boatPosition, rocks2[i].pos))) {
+				std::cout << "Collision detected! Restarting game..." << std::endl;
+				initGame();
+			}
+			*/
 		}
 	}
 
 	void initGame() {
 		boatPosition = initialBoatPosition;
-		rock1Position = initialRock1Position;
-		rock2Position = initialRock2Position;
-
 		boatSpeedFactor = speedFactorConstant;
 		rockSpeedFactor = fwdSpeedFactorConstant;
+		for(int i = 0; i < rocksNum; i++) {
+			rocks1[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
+			rocks2[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
+		}
 	}
 };
 
