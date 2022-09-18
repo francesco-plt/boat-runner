@@ -41,8 +41,8 @@ static const glm::vec3 rock1scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
 static const float FoV = glm::radians(90.0f);
 
-static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.0f, -2.0f);
-static const glm::vec3 cameraDirection = glm::vec3(0.0f, 0.0f, 0.0f);
+static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.5f, -4.0f);
+static const glm::vec3 cameraDirection = glm::vec3(0.0f, 1.5f, 0.0f);
 static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
 struct globalUniformBufferObject {
@@ -290,7 +290,7 @@ class BoatRunner : public BaseProject {
 		
 		void* data;
 
-		gubo.view = glm::lookAt(cameraPosition, cameraDirection, glm::vec3(0, 2, 0));
+		gubo.view = glm::lookAt(cameraPosition, cameraDirection, glm::vec3(0, 0, 1));
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
 		gubo.proj[1][1] *= -1;
 
@@ -359,7 +359,7 @@ class BoatRunner : public BaseProject {
 
 	void detectCollisions() {
 		if(!glm::all(glm::equal(boatPosition, oldBoatPos))) {
-			printf("Boat Position: (%f, %f, %f)\n", boatPosition.x, boatPosition.y, boatPosition.z);
+			printf("Boat Position: (%.1f, %.1f, %.1f)\n", boatPosition.x, boatPosition.y, boatPosition.z);
 			oldBoatPos = boatPosition;
 		}
 		for(int i = 0; i < rocksNum; i++) {
