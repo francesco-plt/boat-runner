@@ -3,16 +3,16 @@ using namespace std;
 #include "BoatRunner.hpp"
 
 #include <cmath>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtc/epsilon.hpp>
+#include <vector>
 #include <string>
 #include <unordered_map>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/string_cast.hpp>
 #include <glm/gtx/hash.hpp>
-
-#include <vector>
+#include <glm/gtc/random.hpp>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/epsilon.hpp>
 
 #define rocksNum 30
 #define limitNorth -160
@@ -57,7 +57,7 @@ struct UniformBufferObject {
 struct RockStruct {
 	DescriptorSet DS_Rock;
 	glm::vec3 pos;
-	glm::vec3 rot;
+	float rot;
 	int id;
 };
 
@@ -91,6 +91,7 @@ class BoatRunner : public BaseProject {
 	DescriptorSet DS_global;
 
 	glm::vec3 boatPosition;
+	glm::vec3 oldBoatPos = initialBoatPosition;
 
 	float boatSpeedFactor;
 	float rockSpeedFactor;
@@ -154,7 +155,7 @@ class BoatRunner : public BaseProject {
 						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 						{1, TEXTURE, 0, &T_Rock1}
 			});
-			rock.pos = glm::vec3(rand() % (limitNorth * 2 + 1) - limitNorth, 0, rand() % (limitZ * 2 + 1) - limitZ);
+			rock.pos = glm::vec3(glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth), 0, glm::linearRand(-limitZ, limitZ));
 			rock.id = i;
 			rocks1.push_back(rock);
 		}
@@ -168,7 +169,7 @@ class BoatRunner : public BaseProject {
 						{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 						{1, TEXTURE, 0, &T_Rock2}
 			});
-			rock.pos = glm::vec3(rand() % (limitNorth * 2 + 1) - limitNorth, 0, rand() % (limitZ * 2 + 1) - limitZ);
+			rock.pos = glm::vec3(glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth), 0, glm::linearRand(-limitZ, limitZ));
 			rock.id = rocksNum + i;
 			rocks2.push_back(rock);
 		}
@@ -314,7 +315,7 @@ class BoatRunner : public BaseProject {
 			ubo.model = glm::scale(ubo.model, rock1scalingFactor);
 			ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0, 1, 0));
 			ubo.model = glm::translate(ubo.model, rocks1[i].pos);
-			ubo.model = glm::rotate(ubo.model, glm::radians(360.0f), rocks1[i].rot);
+			ubo.model = glm::rotate(ubo.model, rocks1[i].rot, yAxis);
 
 			vkMapMemory(device, rocks1[i].DS_Rock.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 			memcpy(data, &ubo, sizeof(ubo));
@@ -324,7 +325,7 @@ class BoatRunner : public BaseProject {
 			ubo.model = glm::scale(ubo.model, rock2scalingFactor);
 			ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0, 1, 0));
 			ubo.model = glm::translate(ubo.model, rocks2[i].pos);
-			ubo.model = glm::rotate(ubo.model, glm::radians(360.0f), rocks2[i].rot);
+			ubo.model = glm::rotate(ubo.model, rocks2[i].rot, yAxis);
 
 			vkMapMemory(device, rocks2[i].DS_Rock.uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 			memcpy(data, &ubo, sizeof(ubo));
@@ -336,31 +337,29 @@ class BoatRunner : public BaseProject {
 		for(int i = 0; i < rocksNum; i++) {
 			rocks1[i].pos.x += rockSpeedFactor;
 			if(rocks1[i].pos.x > limitSouth) {
-				rocks1[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
-				rocks1[i].pos.z = rand() % (limitZ * 2 + 1) - limitZ;
-				rocks1[i].rot = glm::vec3(((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1);
+				rocks1[i].pos.x = glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth);
+				rocks1[i].pos.z = glm::linearRand(-limitZ, limitZ);
+				rocks1[i].rot = glm::radians(glm::linearRand(0.0f, 1.0f));
 			}
 			rocks2[i].pos.x += rockSpeedFactor;
 			if(rocks2[i].pos.x > limitSouth) {
-				rocks2[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
-				rocks2[i].pos.z = rand() % (limitZ * 2 + 1) - limitZ;
-				rocks2[i].rot = glm::vec3(((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1, ((double) rand() / RAND_MAX) + 1);
+				rocks2[i].pos.x = glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth);
+				rocks2[i].pos.z = glm::linearRand(-limitZ, limitZ);
+				rocks2[i].rot = glm::radians(glm::linearRand(0.0f, 360.0f));
 			}
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_A)) {
-			boatPosition.z += 1.0f;
+			boatPosition.z += boatSpeedFactor;
 		}
 		if (glfwGetKey(window, GLFW_KEY_D)) {
-			boatPosition.z -= 1.0f;
+			boatPosition.z -= boatSpeedFactor;
 		}
 	}
 
-	glm::vec3 oldBoatPos = initialBoatPosition;
-
 	void detectCollisions() {
 		if(!glm::all(glm::equal(boatPosition, oldBoatPos))) {
-			std::cout << "Boat Position: " << glm::to_string(boatPosition) << std::endl;
+			printf("Boat Position: (%f, %f, %f)\n", boatPosition.x, boatPosition.y, boatPosition.z);
 			oldBoatPos = boatPosition;
 		}
 		for(int i = 0; i < rocksNum; i++) {
@@ -376,12 +375,6 @@ class BoatRunner : public BaseProject {
 					initGame();
 				}
 			}
-			/*
-			if(glm::all(glm::equal(boatPosition, rocks1[i].pos)) || glm::all(glm::equal(boatPosition, rocks2[i].pos))) {
-				std::cout << "Collision detected! Restarting game..." << std::endl;
-				initGame();
-			}
-			*/
 		}
 	}
 
@@ -390,8 +383,8 @@ class BoatRunner : public BaseProject {
 		boatSpeedFactor = speedFactorConstant;
 		rockSpeedFactor = fwdSpeedFactorConstant;
 		for(int i = 0; i < rocksNum; i++) {
-			rocks1[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
-			rocks2[i].pos.x = limitNorth + rand() % (deltaNorth * 2 + 1) - deltaNorth;
+			rocks1[i].pos.x = glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth);
+			rocks2[i].pos.x = glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth);
 		}
 	}
 };
