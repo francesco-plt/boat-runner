@@ -14,13 +14,6 @@ using namespace std;
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/epsilon.hpp>
 
-#define rocksNum 30
-#define limitNorth -160
-#define limitSouth 30
-#define limitZ 50
-#define deltaNorth 60
-#define boatWidth 20
-#define boatLength 20
 
 // Asset paths
 static const string MODEL_PATH = "models";
@@ -33,6 +26,15 @@ static const glm::mat4 I = glm::mat4(1.0f);           // Identity matrix
 static const glm::vec3 xAxis = glm::vec3(1, 0, 0);    // x axis
 static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
+
+// spatial constraints
+static const int rocksNum = 30;
+static const int limitNorth = -160;
+static const int limitSouth = 30;
+static const int limitZ = 50;
+static const int deltaNorth = 60;
+static const int boatWidth = 20;
+static const int boatLength = 20;
 
 static const float speedFactorConstant = 30.0f;
 static const float fwdSpeedFactorConstant = 0.1f;
@@ -59,6 +61,116 @@ struct RockStruct {
 	glm::vec3 pos;
 	float rot;
 	int id;
+};
+
+enum rockType {rock1, rock2};
+
+class Boat {
+
+	protected:
+	DescriptorSet DS;
+	Model model;
+	Texture texture;
+	glm::vec3 boatPosition;
+
+	public:
+	Boat(BaseProject *br, DescriptorSetLayout DSLobj) {
+		model.init(br, MODEL_PATH + "/Boat.obj");
+		texture.init(br, TEXTURE_PATH + "/Boat.bmp");
+		DS.init(br, &DSLobj, {
+					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+					{1, TEXTURE, 0, &texture}
+		});
+		reset();
+	}
+
+	void reset() {
+		boatPosition = initialBoatPosition;
+	}
+
+	void moveLeft(float speedFactor, float deltaTime) {
+		// we need to take into account boat rotation
+		// boatPosition.x -= speedFactor;
+		boatPosition.z += speedFactor * deltaTime;
+	}
+
+	void moveRight(float speedFactor, float deltaTime) {
+		// boatPosition.x += speedFactor;
+		boatPosition.z -= speedFactor * deltaTime;
+	}
+
+	void setBoatPosition(glm::vec3 pos) {
+		boatPosition = pos;
+	}
+
+	glm::vec3 getBoatPosition() {
+		return boatPosition;
+	}
+
+	void printBoatPosition() {
+		printf("Boat Position: (%f, %f, %f)\n", boatPosition.x, boatPosition.y, boatPosition.z);
+	}
+};
+
+class Rock {
+	
+	protected:
+	DescriptorSet DS;
+	Model model;
+	Texture texture;
+	rockType type;
+	glm::vec3 pos;
+	float rot;
+	int id;
+
+	public:
+	Rock(BaseProject *br, DescriptorSetLayout DSLobj, rockType t, int identifier) {
+		type = t;
+		if (type == rock1) {
+			model.init(br, MODEL_PATH + "/Rock1.obj");
+			texture.init(br, TEXTURE_PATH + "/Rock1.bmp");
+		} else {
+			model.init(br, MODEL_PATH + "/Rock2.obj");
+			texture.init(br, TEXTURE_PATH + "/Rock2.bmp");
+		}
+		DS.init(br, &DSLobj, {
+					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+					{1, TEXTURE, 0, &texture}
+		});
+		id = identifier;
+
+		reset();
+	}
+
+	void reset() {
+		pos = glm::vec3(
+			glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth),
+			0,
+			glm::linearRand(-limitZ, limitZ)
+		);
+		rot = glm::linearRand(0.0f, 360.0f);
+	}
+
+	// getters and setters
+	
+	void setPos(glm::vec3 pos) {
+		this->pos = pos;
+	}
+	glm::vec3 getPos() {
+		return pos;
+	}
+
+	void setRot(float rot) {
+		this->rot = rot;
+	}
+
+	float getRot() {
+		return rot;
+	}
+
+	int getId() {
+		return id;
+	}
 };
 
 class BoatRunner : public BaseProject {
