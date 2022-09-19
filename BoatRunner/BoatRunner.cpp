@@ -88,6 +88,16 @@ class Boat {
 		boatPosition = initialBoatPosition;
 	}
 
+	void cleanup() {
+		model.cleanup();
+		texture.cleanup();
+		DS.cleanup();
+	}
+
+	Model getModel() {
+		return model;
+	}
+
 	void moveLeft(float speedFactor, float deltaTime) {
 		// we need to take into account boat rotation
 		// boatPosition.x -= speedFactor;
@@ -149,6 +159,16 @@ class Rock {
 			glm::linearRand(-limitZ, limitZ)
 		);
 		rot = glm::linearRand(0.0f, 360.0f);
+	}
+
+	void cleanup() {
+		model.cleanup();
+		texture.cleanup();
+		DS.cleanup();
+	}
+
+	Model getModel() {
+		return model;
 	}
 
 	// getters and setters
