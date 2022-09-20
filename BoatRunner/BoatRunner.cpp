@@ -16,6 +16,14 @@ using namespace std;
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/epsilon.hpp>
 
+#if defined(_WIN64)
+#define boatSpeed 0.3f
+#define rockSpeed 0.4f
+#else
+#define boatSpeed 0.6f
+#define rockSpeed 0.8f
+#endif
+
 #define ESC "\033[;"
 #define RED "31m"
 #define GREEN "32m"
@@ -43,8 +51,6 @@ static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock1scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
-static const float boatSpeed = 0.6f;
-static const float rockSpeed = 0.8f;
 static const float oceanSpeed = 0.25f;
 static const float maxAcceleration = 3.0f;
 
@@ -54,12 +60,14 @@ static const float nearPlane = 0.1f;
 static const float farPlane = 100.0f;
 
 
-static const int horizon = -80.0f;
+static const int horizon = -100.0f;
 static const int maxDepth = 10;
 static const int leftBound = 12;
 static const int rightBound = -12;
+static const int forwardBound = -5;
+static const int backwardBound = 5;
 static const int limitZ = 20;
-static const int rockGenDelta = 18;
+static const int rockGenDelta = 50;
 static const float boatWidth = 3.5f;
 static const float boatLength = 5.5f;
 
@@ -119,6 +127,14 @@ class Boat {
 
 	void moveRight(float deltaT) {
 		pos.z -= speedFactor;
+	}
+
+	void moveForward(float deltaT) {
+		pos.x -= speedFactor / 2;
+	}
+
+	void moveBackward(float deltaT) {
+		pos.x += speedFactor / 2;
 	}
 
 	Model getModel() {
@@ -554,6 +570,12 @@ class BoatRunner : public BaseProject {
 		if (glfwGetKey(window, GLFW_KEY_D)) {
 			boat.moveRight(accelerationFactor);
 		}
+		if (glfwGetKey(window, GLFW_KEY_W)) {
+			boat.moveForward(accelerationFactor);
+		}
+		if (glfwGetKey(window, GLFW_KEY_S)) {
+			boat.moveBackward(accelerationFactor);
+		}
 	}
 
 	void detectCollisions() {
@@ -594,6 +616,11 @@ class BoatRunner : public BaseProject {
 			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, leftBound));
 		} else if(boat.getPos().z < rightBound) {
 			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, rightBound));
+		}
+		if(boat.getPos().x < forwardBound) {
+			boat.setPos(glm::vec3(forwardBound, boat.getPos().y, boat.getPos().z));
+		} else if(boat.getPos().x > backwardBound) {
+			boat.setPos(glm::vec3(backwardBound, boat.getPos().y, boat.getPos().z));
 		}
 	}
 
