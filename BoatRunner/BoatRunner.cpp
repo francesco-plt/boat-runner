@@ -45,6 +45,7 @@ static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
 static const float boatSpeed = 0.6f;
 static const float rockSpeed = 0.8f;
+static const float oceanSpeed = 0.25f;
 static const float maxAcceleration = 3.0f;
 
 
@@ -158,7 +159,7 @@ class Ocean {
 				{1, TEXTURE, 0, &texture}
 			});
 
-			speedFactor = rockSpeed;
+			speedFactor = oceanSpeed;
 			pos = glm::vec3(0.0f, 0.0f, 0.0f);
 		}
 
@@ -167,6 +168,11 @@ class Ocean {
 			texture.cleanup();
 			DS.cleanup();
 		}
+
+		void moveForward(float accelerationFactor) {
+			pos.x += speedFactor;
+		}
+
 
 		Model getModel() {
 			return model;
@@ -474,7 +480,7 @@ class BoatRunner : public BaseProject {
 		if(accFactor >= maxAcceleration) {
 			accFactor = maxAcceleration;
 		} else {
-			accFactor += log10(log10(lastTime/5000 + 10));
+			accFactor += log10(log10(lastTime/8000 + 10));
 		}
 
 		updatePosition(accFactor);
@@ -500,6 +506,7 @@ class BoatRunner : public BaseProject {
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
 		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), xAxis);	// boat oscillation
 		ubo.model = glm::translate(ubo.model, boat.getPos());	// translating boat according to players input
+		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.8f, 0));	// translating the boat down in the water
 		
 		vkMapMemory(device, boat.getDS().uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
@@ -509,8 +516,8 @@ class BoatRunner : public BaseProject {
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, oceanScalingFactor);	// scale the model
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
-		// we want to translate the ocean down so that it is always under the boat
-		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.01f, 0));
+		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.005f, 0));	// translating the ocean down so that it is always under the boat
+		ubo.model = glm::scale(ubo.model, glm::vec3(1, 0.5f, 1));	// making it shorter in height so that it doesn't cover the boat
 
 		vkMapMemory(device, ocean.getDS().uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
 		memcpy(data, &ubo, sizeof(ubo));
@@ -532,6 +539,8 @@ class BoatRunner : public BaseProject {
 
 	void updatePosition(float accelerationFactor) {
 		
+		ocean.moveForward(accelerationFactor);
+
 		for(auto & r : rocks) {
 			r.moveForward(accelerationFactor);
 			if(r.getPos().x > maxDepth) {
