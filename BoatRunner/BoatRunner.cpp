@@ -618,17 +618,20 @@ class BoatRunner : public BaseProject {
 	float readScore(string fname) {
 		
 		float score;
+
 		ifstream rf(fname, ios::out | ios::binary);
+		if(!rf.good()) {
+			cout << "Cannot read score file. Creating a new one..." << endl;
+			writeScore(fname, 0.0f);
+			return -1;
+		}
 		if(!rf) {
 			cout << "Cannot open file!" << endl;
 			return 1;
    		}
 		rf.read((char*)&score, sizeof(float));
 		rf.close();
-		if(!rf.good()) {
-			cout << "Cannot read score file..." << endl;
-			return -1;
-		}
+
 		return score;
 	}
 };
