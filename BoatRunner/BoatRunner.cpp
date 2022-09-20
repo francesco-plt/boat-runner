@@ -42,6 +42,7 @@ static const int rocksCount = 10;
 static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock1scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
+static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
 static const float boatSpeed = 0.6f;
 static const float rockSpeed = 0.8f;
 static const float maxAcceleration = 3.0f;
@@ -49,10 +50,10 @@ static const float maxAcceleration = 3.0f;
 
 static const float FoV = glm::radians(60.0f);
 static const float nearPlane = 0.1f;
-static const float farPlane = 80.0f;
+static const float farPlane = 100.0f;
 
 
-static const int horizon = -farPlane;
+static const int horizon = -80.0f;
 static const int maxDepth = 10;
 static const int leftBound = 12;
 static const int rightBound = -12;
@@ -383,16 +384,18 @@ class BoatRunner : public BaseProject {
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 				
+		// Pipeline
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, P1.graphicsPipeline);
 		vkCmdBindDescriptorSets(commandBuffer,
 						VK_PIPELINE_BIND_POINT_GRAPHICS,
 						P1.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
 						0, nullptr);
 
-		VkBuffer oceanVertexBuffers[] = {boat.getModel().vertexBuffer};
+		// Boat
+		VkBuffer boatVertexBuffers[] = {boat.getModel().vertexBuffer};
 		// property .vertexBuffer of models, contains the VkBuffer handle to its vertex buffer
-		VkDeviceSize oceanOffsets[] = {0};
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, oceanVertexBuffers, oceanOffsets);
+		VkDeviceSize boatOffsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, boatVertexBuffers, boatOffsets);
 
 		vkCmdBindIndexBuffer(commandBuffer, boat.getModel().indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
@@ -404,6 +407,22 @@ class BoatRunner : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(boat.getModel().indices.size()), 1, 0, 0, 0);
 
+		// Ocean
+		VkBuffer oceanVertexBuffers[] = {ocean.getModel().vertexBuffer};
+		VkDeviceSize oceanOffsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, oceanVertexBuffers, oceanOffsets);
+
+		vkCmdBindIndexBuffer(commandBuffer, ocean.getModel().indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+						VK_PIPELINE_BIND_POINT_GRAPHICS,
+						P1.pipelineLayout, 1, 1, &ocean.getDS().descriptorSets[currentImage],
+						0, nullptr);
+						
+		vkCmdDrawIndexed(commandBuffer,
+					static_cast<uint32_t>(ocean.getModel().indices.size()), 1, 0, 0, 0);
+
+		// Rocks
 		VkBuffer rock1VertexBuffers[] = {M_Rock1.vertexBuffer};
 		VkDeviceSize rock1Offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rock1VertexBuffers, rock1Offsets);
@@ -486,6 +505,18 @@ class BoatRunner : public BaseProject {
 		memcpy(data, &ubo, sizeof(ubo));
 		vkUnmapMemory(device, boat.getDS().uniformBuffersMemory[0][currentImage]);
 
+		// Ocean
+		ubo.model = I;
+		ubo.model = glm::scale(ubo.model, oceanScalingFactor);	// scale the model
+		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		// we want to translate the ocean down so that it is always under the boat
+		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.01f, 0));
+
+		vkMapMemory(device, ocean.getDS().uniformBuffersMemory[0][currentImage], 0, sizeof(ubo), 0, &data);
+		memcpy(data, &ubo, sizeof(ubo));
+		vkUnmapMemory(device, ocean.getDS().uniformBuffersMemory[0][currentImage]);		
+
+		// Rocks
 		for(auto & r : rocks) {
 			ubo.model = I;
 			ubo.model = glm::scale(ubo.model, rock1scalingFactor);
@@ -534,7 +565,7 @@ class BoatRunner : public BaseProject {
 					
 					if(score > highScore) {
 						highScore = score;
-						std::cout << "New High Score: " << highScore << std::endl;
+						std::cout << ESC << GREEN << "New High Score: " << highScore << RESET << std::endl;
 
 						if(writeScore("highscore.dat", highScore)) {
 							std::cout << "High Score written to file." << std::endl;
