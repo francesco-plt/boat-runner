@@ -20,8 +20,8 @@ using namespace std;
 #define boatSpeed 0.3f
 #define rockSpeed 0.4f
 #else
-#define boatSpeed 0.6f
-#define rockSpeed 0.8f
+#define boatSpeed 0.5f
+#define rockSpeed 1.0f
 #endif
 
 #define ESC "\033[;"
@@ -62,10 +62,10 @@ static const float farPlane = 100.0f;
 
 static const int horizon = -100.0f;
 static const int maxDepth = 10;
-static const int leftBound = 12;
-static const int rightBound = -12;
-static const int forwardBound = -5;
-static const int backwardBound = 5;
+static const int leftBound = 10;
+static const int rightBound = -10;
+static const int forwardBound = -4;
+static const int backwardBound = 2;
 static const int limitZ = 20;
 static const int rockGenDelta = 50;
 static const float boatWidth = 3.5f;
@@ -130,11 +130,11 @@ class Boat {
 	}
 
 	void moveForward(float deltaT) {
-		pos.x -= speedFactor / 2;
+		pos.x -= speedFactor / 3;
 	}
 
 	void moveBackward(float deltaT) {
-		pos.x += speedFactor / 2;
+		pos.x += speedFactor / 3;
 	}
 
 	Model getModel() {
@@ -228,7 +228,7 @@ class Rock {
 		// x in [horizon - rockGenDelta], horizon + rockGenDelta]
 		// z in [leftBound, rightBound]
 		pos = glm::vec3(
-			glm::linearRand(horizon - rockGenDelta, horizon + rockGenDelta),
+			glm::linearRand(horizon - rockGenDelta * 2.0f, horizon + rockGenDelta * 0.5f),
 			0, glm::linearRand(rightBound, leftBound)
 		);
 		// same for rotation
@@ -521,6 +521,7 @@ class BoatRunner : public BaseProject {
 		ubo.model = glm::scale(ubo.model, boatScalingFactor);	// scale the model
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
 		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), xAxis);	// boat oscillation
+		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), zAxis);	// ocean oscillation
 		ubo.model = glm::translate(ubo.model, boat.getPos());	// translating boat according to players input
 		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.8f, 0));	// translating the boat down in the water
 		
@@ -532,6 +533,7 @@ class BoatRunner : public BaseProject {
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, oceanScalingFactor);	// scale the model
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		ubo.model = glm::rotate(ubo.model, glm::radians(0.5f * sin(time)), zAxis);	// ocean oscillation
 		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.005f, 0));	// translating the ocean down so that it is always under the boat
 		ubo.model = glm::scale(ubo.model, glm::vec3(1, 0.5f, 1));	// making it shorter in height so that it doesn't cover the boat
 
