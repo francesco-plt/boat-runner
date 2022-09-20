@@ -73,7 +73,7 @@ class Boat {
 
 	public:
 	void init(BaseProject *br, DescriptorSetLayout DSLobj) {
-		model.init(br, MODEL_PATH + "/Boat_scaled2.obj");
+		model.init(br, MODEL_PATH + "/BoatScaled.obj");
 		texture.init(br, TEXTURE_PATH + "/Boat.bmp");
 		DS.init(br, &DSLobj, {
 					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
@@ -123,6 +123,42 @@ class Boat {
 	void printPos() {
 		printf("Boat Position: (%.1f, %.1f, %.1f)\n", pos.x, pos.y, pos.z);
 	}
+};
+
+class Ocean {
+	protected:
+	DescriptorSet DS;
+	Model model;
+	Texture texture;
+	glm::vec3 pos;
+	float speedFactor;
+	
+	public:
+		void init(BaseProject *br, DescriptorSetLayout DSLobj) {
+			model.init(br, MODEL_PATH + "/Ocean.obj");
+			texture.init(br, TEXTURE_PATH + "/Ocean.png");
+			DS.init(br, &DSLobj, {
+				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &texture}
+			});
+
+			speedFactor = 0.8f;
+			pos = glm::vec3(0.0f, 0.0f, 0.0f);
+		}
+
+		void cleanup() {
+			model.cleanup();
+			texture.cleanup();
+			DS.cleanup();
+		}
+
+		Model getModel() {
+			return model;
+		}
+
+		DescriptorSet getDS() {
+			return DS;
+		}
 };
 
 class Rock {
@@ -208,6 +244,7 @@ class BoatRunner : public BaseProject {
 	// Models, textures and Descriptors (values assigned to the uniforms)
 
 	Boat boat;
+	Ocean ocean;
 
 	Model M_Rock1;
 	Texture T_Rock1;
