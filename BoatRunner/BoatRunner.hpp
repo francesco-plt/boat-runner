@@ -36,6 +36,14 @@
 #include "headers/tiny_obj_loader.h"
 #endif
 
+#define ESC "\033[;"
+#define RED "31m"
+#define GREEN "32m"
+#define YELLOW "33m"
+#define BLUE "34m"
+#define PURPLE "35m"
+#define RESET "\033[m"
+
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 // Lesson 22.0
@@ -484,10 +492,7 @@ class BaseProject {
     // printing debug info in case of errors
     const auto msg = std::string(pCallbackData->pMessage);
     if (msg.find("Error") != std::string::npos)
-      std::cerr << "\033[31m"
-                << "\nvalidation layer: " << pCallbackData->pMessage
-                << "\033[0m\n"
-                << std::endl;
+      std::cerr << ESC << RED << "Validation Layer Error: " << pCallbackData->pMessage << RESET << std::endl;
     return VK_FALSE;
   }
 
@@ -1534,6 +1539,7 @@ class BaseProject {
     glfwDestroyWindow(window);
 
     glfwTerminate();
+
 
     std::cout << "Cleanup done..." << std::endl;
   }

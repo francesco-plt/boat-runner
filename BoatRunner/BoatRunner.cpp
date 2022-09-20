@@ -16,6 +16,13 @@ using namespace std;
 #include <glm/gtx/euler_angles.hpp>
 #include <glm/gtc/epsilon.hpp>
 
+#define ESC "\033[;"
+#define RED "31m"
+#define GREEN "32m"
+#define YELLOW "33m"
+#define BLUE "34m"
+#define PURPLE "35m"
+#define RESET "\033[m"
 
 /* --------------------------------- GLOBAL VARIABLES --------------------------------- */
 
@@ -90,7 +97,7 @@ class Boat {
 
 		speedFactor = boatSpeed;
 		reset();
-		std::cout << "Boat initialized" << std::endl;
+		std::cout << ESC << GREEN << "Boat initialized" << RESET << std::endl;
 	}
 
 	void reset() {
@@ -190,7 +197,7 @@ class Rock {
 		id = identifier;
 		speedFactor = rockSpeed;
 		reset();
-		std::cout << "Rock " << id << " initialized" << std::endl;
+		std::cout << ESC << GREEN << "Rock " << id << " initialized" << RESET << std::endl;
 	}
 
 	void reset() {
@@ -340,14 +347,17 @@ class BoatRunner : public BaseProject {
 
 		DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}});
 
-		std::cout << "Local init done" << std::endl;
-		std::cout << "BoatRunner initialized" << std::endl;
-		std::cout << "\n\nGAME OUTPUT:\n" << std::endl;
+		std::cout << "BoatRunner initialized..." << std::endl;
+		std::cout << "____________________________________________________" << std::endl;
+		std::cout << "GAME OUTPUT [" << ESC << BLUE << "Highest score: " << highScore << RESET << "]:" << std::endl;
 	}
 
 	// Here you destroy all the objects you created!		
 	void localCleanup() {
 		
+		// clean stdout
+		std::cout << "\n" << std::endl;
+
 		boat.cleanup();
 		ocean.cleanup();
 
@@ -438,6 +448,9 @@ class BoatRunner : public BaseProject {
         lastTime = time;
 		score += deltaT;
 
+		// Updating score in console while running
+		std::cout << ESC << PURPLE << "score: " << score << RESET << '\r' << std::flush;
+
 		// progressive acceleration
 		if(accFactor >= maxAcceleration) {
 			accFactor = maxAcceleration;
@@ -516,8 +529,8 @@ class BoatRunner : public BaseProject {
 			if(r.getPos().x <= boat.getPos().x + boatLength / 2 && r.getPos().x >= boat.getPos().x - boatLength / 2) {
 				if(r.getPos().z <= boat.getPos().z + boatWidth / 2 && r.getPos().z >= boat.getPos().z - boatWidth / 2) {
 
-					printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
-					std::cout << "Score: " << score << std::endl;
+					// printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
+					std::cout << ESC << RED << "Final score: " << score << RESET << std::endl;
 					
 					if(score > highScore) {
 						highScore = score;
@@ -529,7 +542,7 @@ class BoatRunner : public BaseProject {
 							std::cout << "Failed to write High Score to file." << std::endl;
 						}
 					}
-					std::cout << "\nRestarting the game...\n\n" << std::endl;
+					std::cout << "Restarting the game..." << std::endl;
 
 					initGame();
 				}
