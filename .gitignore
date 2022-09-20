@@ -2,4 +2,5 @@
 .vscode
 BoatRunner/build/*
 BoatRunner/shaders/*.spv
+BoatRunner/highscore.dat
 *.exe

@@ -1,0 +1,11 @@
+Assumptions:
+- Everything is done in the same Render Pass, that has a single subpass and only a color 
+attachment.
+- One single type of Vertex is used, that has Position, Normal Vector and UV coordinates.
+- Only Indexed Trianlge lists primitives are used.
+- Each Pipeline has a different and personal Pipeline Layout.
+- All Pipeliens have only a Vertex and a Fragment shader, both starting with main()
+- Only two types of descriptors are allowed: uniforms and combined images and samplers
+- All Meshes and Textures needs to be loaded from the beginning, and be in the scene for the 
+whole time. However, plese remember that objects might always be hidden by bringing them 
+"off-screen" (with coordinates fruther than the far plane)

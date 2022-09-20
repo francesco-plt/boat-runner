@@ -2,6 +2,8 @@ using namespace std;
 
 #include "BoatRunner.hpp"
 
+#include <fstream>
+#include<iostream>
 #include <cmath>
 #include <vector>
 #include <string>
@@ -28,18 +30,22 @@ static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
 // spatial constraints
-static const int rocksCount = 16;
-static const int limitNorth = -160;
-static const int limitSouth = 30;
-static const int limitZ = 50;
-static const int deltaNorth = 60;
-static const int boatWidth = 20;
-static const int boatLength = 14;
-
-static const glm::vec3 boatScalingFactor = glm::vec3(0.005f);
+static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock1scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
-static const float FoV = glm::radians(90.0f);
+static const float FoV = glm::radians(75.0f);
+static const float nearPlane = 0.1f;
+static const float farPlane = 55.0f;
+
+static const int rocksCount = 10;
+static const int horizon = -farPlane;
+static const int maxDepth = 10;
+static const int leftBound = 12;
+static const int rightBound = -12;
+static const int limitZ = 20;
+static const int rockGenDelta = 18;
+static const int boatWidth = 4;
+static const int boatLength = 8;
 
 static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.5f, -4.0f);
 static const glm::vec3 cameraDirection = glm::vec3(0.0f, 1.5f, 0.0f);
@@ -67,14 +73,14 @@ class Boat {
 
 	public:
 	void init(BaseProject *br, DescriptorSetLayout DSLobj) {
-		model.init(br, MODEL_PATH + "/Boat.obj");
+		model.init(br, MODEL_PATH + "/Boat_scaled2.obj");
 		texture.init(br, TEXTURE_PATH + "/Boat.bmp");
 		DS.init(br, &DSLobj, {
 					{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
 					{1, TEXTURE, 0, &texture}
 		});
 
-		speedFactor = 10.0f;
+		speedFactor = 0.8f;
 		reset();
 		std::cout << "Boat initialized" << std::endl;
 	}
@@ -110,6 +116,10 @@ class Boat {
 		return pos;
 	}
 
+	void setPos(glm::vec3 newPos) {
+		pos = newPos;
+	}
+
 	void printPos() {
 		printf("Boat Position: (%.1f, %.1f, %.1f)\n", pos.x, pos.y, pos.z);
 	}
@@ -134,15 +144,15 @@ class Rock {
 		});
 		
 		id = identifier;
-		speedFactor = 0.8f;
+		speedFactor = 0.45f;
 		reset();
 		std::cout << "Rock " << id << " initialized" << std::endl;
 	}
 
 	void reset() {
 		pos = glm::vec3(
-			glm::linearRand(limitNorth - deltaNorth, limitNorth + deltaNorth),
-			0, glm::linearRand(-limitZ, limitZ)
+			glm::linearRand(horizon - rockGenDelta, horizon + rockGenDelta),
+			0, glm::linearRand(rightBound, leftBound)
 		);
 		rot = glm::linearRand(0.0f, 360.0f);
 	}
@@ -210,6 +220,10 @@ class BoatRunner : public BaseProject {
 
 	// glm::vec3 boatPosition;
 	glm::vec3 oldBoatPos = initialBoatPosition;
+
+	float score = 0.0f;
+	float highScore = (float) readScore("highscore.dat");
+	float oldScore = 0.0f;
 	
 	// application parameters:
     // Window size, titile and initial background
@@ -270,6 +284,10 @@ class BoatRunner : public BaseProject {
 		}
 
 		DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}});
+
+		std::cout << "Local init done" << std::endl;
+		std::cout << "BoatRunner initialized" << std::endl;
+		std::cout << "\n\nGAME OUTPUT:\n" << std::endl;
 	}
 
 	// Here you destroy all the objects you created!		
@@ -363,6 +381,8 @@ class BoatRunner : public BaseProject {
         float deltaT = time - lastTime;
         lastTime = time;
 
+		score += deltaT;
+
 		updatePosition(deltaT);
 		detectCollisions();
 					
@@ -372,7 +392,7 @@ class BoatRunner : public BaseProject {
 		void* data;
 
 		gubo.view = glm::lookAt(cameraPosition, cameraDirection, glm::vec3(0, 0, 1));
-		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, nearPlane, farPlane);
 		gubo.proj[1][1] *= -1;
 
 		vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
@@ -381,7 +401,6 @@ class BoatRunner : public BaseProject {
 		
 
 		// Boat
-		boat.printPos();
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, boatScalingFactor);	// scale the model
 		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
@@ -409,7 +428,7 @@ class BoatRunner : public BaseProject {
 		
 		for(auto & r : rocks) {
 			r.moveForward();
-			if(r.getPos().x > limitSouth) {
+			if(r.getPos().x > maxDepth) {
 				r.reset();
 			}
 		}
@@ -429,23 +448,81 @@ class BoatRunner : public BaseProject {
 			oldBoatPos = boat.getPos();
 		}
 		
+		// check for collisions beteween boat and rocks
 		for(auto & r : rocks) {
-			r.printPos();
+			// r.printPos();
 			if(r.getPos().x <= boat.getPos().x + boatLength / 2 && r.getPos().x >= boat.getPos().x - boatLength / 2) {
 				if(r.getPos().z <= boat.getPos().z + boatWidth / 2 && r.getPos().z >= boat.getPos().z - boatWidth / 2) {
-					printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\nRestarting the game\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
+
+					printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
+					std::cout << "Score: " << score << std::endl;
+					
+					if(score > highScore) {
+						highScore = score;
+						std::cout << "New High Score: " << highScore << std::endl;
+
+						if(writeScore("highscore.dat", highScore)) {
+							std::cout << "High Score written to file." << std::endl;
+						} else {
+							std::cout << "Failed to write High Score to file." << std::endl;
+						}
+					}
+					std::cout << "\nRestarting the game...\n\n" << std::endl;
+
 					initGame();
 				}
 			}
+		}
+
+		//check that the boat stays in the horizontal limits
+		if(boat.getPos().z > leftBound) {
+			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, leftBound));
+		} else if(boat.getPos().z < rightBound) {
+			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, rightBound));
 		}
 	}
 
 	void initGame() {
 		
+		oldScore = score;
+		score = 0.0f;
 		boat.reset();
 		for(auto & r : rocks) {
 			r.reset();
 		}
+	}
+
+	bool writeScore(string fname, float score) {
+		
+		ofstream wf(fname, ios::out | ios::binary);
+		if(!wf) {
+			cout << "Cannot open file!" << endl;
+			return false;
+		}
+		wf.write((char*)&score, sizeof(score));
+		wf.close();
+   		if(!wf.good()) {
+      		cout << "Cannot write high score file..." << endl;
+      		return false;
+   		}
+		return true;
+	}
+
+	float readScore(string fname) {
+		
+		float score;
+		ifstream rf(fname, ios::out | ios::binary);
+		if(!rf) {
+			cout << "Cannot open file!" << endl;
+			return 1;
+   		}
+		rf.read((char*)&score, sizeof(float));
+		rf.close();
+		if(!rf.good()) {
+			cout << "Cannot read score file..." << endl;
+			return -1;
+		}
+		return score;
 	}
 };
 
