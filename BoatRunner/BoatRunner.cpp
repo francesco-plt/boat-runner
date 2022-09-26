@@ -317,7 +317,7 @@ class BoatRunner : public BaseProject {
         windowWidth = 800;
         windowHeight = 600;
         windowTitle = "Boat Runner";
-        initialBackgroundColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        initialBackgroundColor = {0.0f, 0.5f, 0.8f, 1.0f};
 
         // Descriptor pool sizes
         uniformBlocksInPool = dsCount + 1;
@@ -372,7 +372,7 @@ class BoatRunner : public BaseProject {
 
 		std::cout << "BoatRunner initialized..." << std::endl;
 		std::cout << "____________________________________________________" << std::endl;
-		std::cout << "GAME OUTPUT [" << ESC << BLUE << "Highest score: " << highScore << RESET << "]:" << std::endl;
+		std::cout << "GAME OUTPUT [" << "Highest score: " << highScore << "]:" << std::endl;
 	}
 
 	// Here you destroy all the objects you created!		

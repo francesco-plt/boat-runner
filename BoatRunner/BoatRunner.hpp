@@ -338,15 +338,23 @@ class BaseProject {
   std::vector<VkFence> inFlightFences;
   std::vector<VkFence> imagesInFlight;
 
+  //  Skybox pipeline
+ 	VkDescriptorSetLayout SkyBoxDescriptorSetLayout; // for skybox
+  	VkPipelineLayout SkyBoxPipelineLayout;	// for skybox
+	VkPipeline SkyBoxPipeline;		// for skybox
+	std::vector<VkBuffer> SkyBoxUniformBuffers;
+	std::vector<VkDeviceMemory> SkyBoxUniformBuffersMemory;
+	// to access uniforms in the pipeline
+	std::vector<VkDescriptorSet> SkyBoxDescriptorSets;
+
   // Lesson 12
   void initWindow() {
     glfwInit();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-    window = glfwCreateWindow(windowWidth, windowHeight, windowTitle.c_str(),
-                              nullptr, nullptr);
+    window = glfwCreateWindow(windowWidth, windowHeight, windowTitle.c_str(), nullptr, nullptr);
   }
 
   virtual void localInit() = 0;
@@ -492,7 +500,7 @@ class BaseProject {
     // printing debug info in case of errors
     const auto msg = std::string(pCallbackData->pMessage);
     if (msg.find("Error") != std::string::npos)
-      std::cerr << ESC << RED << "Validation Layer Error: " << pCallbackData->pMessage << RESET << std::endl;
+      std::cerr << ESC << RED << "Validation Layer Error: " << pCallbackData->pMessage << RESET << "\n" << std::endl;
     return VK_FALSE;
   }
 
