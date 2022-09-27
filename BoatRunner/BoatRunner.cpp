@@ -70,6 +70,8 @@ static const int limitZ = 20;
 static const int rockGenDelta = 50;
 static const float boatWidth = 3.5f;
 static const float boatLength = 5.5f;
+static const float boatHeight = 1.5f;
+static const float rockHeight = 1.0f;
 
 
 static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.5f, -4.0f);
@@ -171,11 +173,19 @@ class Boat {
 	}
 
 	void moveForward() {
-		pos.x -= speedFactor / 3;
+		pos.x -= speedFactor * 0.33f;
 	}
 
 	void moveBackward() {
-		pos.x += speedFactor / 3;
+		pos.x += speedFactor * 0.33f;
+	}
+
+	void jump() {
+		pos.y += speedFactor * 0.66f;
+	}
+
+	void fall() {
+		pos.y -= speedFactor * 0.66f;
 	}
 
 	Model getModel() {
@@ -488,6 +498,7 @@ class BoatRunner : public BaseProject {
         float time = std::chrono::duration<float, std::chrono::seconds::period> (currentTime - startTime).count();
         float deltaT = time - lastTime;
         lastTime = time;
+		
 		score += deltaT;
 
 		// Updating score in console while running
@@ -500,7 +511,7 @@ class BoatRunner : public BaseProject {
 			accFactor += log10(log10(lastTime/8000 + 10));
 		}
 
-		updatePosition(accFactor);
+		updatePosition(accFactor, time);
 		detectCollisions();
 					
 		globalUniformBufferObject gubo{};
@@ -557,8 +568,11 @@ class BoatRunner : public BaseProject {
 	}
 
 	// Here we handle object motion
-	void updatePosition(float accelerationFactor) {
-		
+	void updatePosition(float accelerationFactor, float time) {
+
+		static bool isJumping = false;
+		static float jumpTime;
+
 		// To give the illusion of the boat moving forward,
 		// the ocean is moved backwards and the rocks are moved forward
 		ocean.moveForward(accelerationFactor);
@@ -585,6 +599,22 @@ class BoatRunner : public BaseProject {
 		if (glfwGetKey(window, GLFW_KEY_S)) {
 			boat.moveBackward();
 		}
+		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
+			if(!isJumping) {
+				isJumping = true;
+				jumpTime = time;
+			}
+		}
+		if(isJumping) {
+			if(time - jumpTime < 0.2f) {
+				boat.jump();
+			} else if ((time - jumpTime) > 0.25f && (time - jumpTime) < 0.45f) {
+				boat.fall();
+			} else if (time - jumpTime > 0.45f) {
+				boat.setPos(glm::vec3(boat.getPos().x, 0.0f, boat.getPos().z));
+				isJumping = false;
+			}
+		}
 	}
 
 	void detectCollisions() {
@@ -600,26 +630,27 @@ class BoatRunner : public BaseProject {
 
 			// if some rocks ends up with the same inside the area
 			// defined by the boat coordinates plus some margin
-			// the game is restarted
+			// then we have a collision
 			if(r.getPos().x <= boat.getPos().x + boatLength / 2 && r.getPos().x >= boat.getPos().x - boatLength / 2) {
 				if(r.getPos().z <= boat.getPos().z + boatWidth / 2 && r.getPos().z >= boat.getPos().z - boatWidth / 2) {
+					if(rockHeight >= boat.getPos().y - boatHeight / 3) {
+						// printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
+						std::cout << ESC << RED << "Final score: " << score << RESET << std::endl;
+						
+						if(score > highScore) {
+							highScore = score;
+							std::cout << ESC << GREEN << "New High Score: " << highScore << RESET << std::endl;
 
-					// printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
-					std::cout << ESC << RED << "Final score: " << score << RESET << std::endl;
-					
-					if(score > highScore) {
-						highScore = score;
-						std::cout << ESC << GREEN << "New High Score: " << highScore << RESET << std::endl;
-
-						if(writeScore("highscore.dat", highScore)) {
-							std::cout << "High Score written to file." << std::endl;
-						} else {
-							std::cout << "Failed to write High Score to file." << std::endl;
+							if(writeScore("highscore.dat", highScore)) {
+								std::cout << "High Score written to file." << std::endl;
+							} else {
+								std::cout << "Failed to write High Score to file." << std::endl;
+							}
 						}
-					}
-					std::cout << "Restarting the game..." << std::endl;
+						std::cout << "Restarting the game..." << std::endl;
 
-					initGame();
+						initGame();
+					}
 				}
 			}
 		}
