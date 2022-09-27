@@ -21,7 +21,7 @@ using namespace std;
 #define rockSpeed 0.4f
 #else
 #define boatSpeed 0.5f
-#define rockSpeed 1.0f
+#define rockSpeed 0.8f
 #endif
 
 #define ESC "\033[;"
@@ -87,82 +87,11 @@ struct UniformBufferObject {
 
 enum rockType {rock1, rock2};
 
-class Boat {
-
-	protected:
-	DescriptorSet DS;
-	Model model;
-	Texture texture;
-	glm::vec3 pos;
-	float speedFactor;
-
-	public:
-	void init(BaseProject *br, DescriptorSetLayout DSLobj) {
-		model.init(br, MODEL_PATH + "/shorterBoat.obj");
-		texture.init(br, TEXTURE_PATH + "/Boat.bmp");
-		DS.init(br, &DSLobj, {
-			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-			{1, TEXTURE, 0, &texture}
-		});
-
-		speedFactor = boatSpeed;
-		reset();
-		std::cout << ESC << GREEN << "Boat initialized" << RESET << std::endl;
-	}
-
-	void reset() {
-		pos = initialBoatPosition;
-	}
-
-	void cleanup() {
-		model.cleanup();
-		texture.cleanup();
-		DS.cleanup();
-	}
-
-	void moveLeft(float deltaT) {
-		// z because we need to take into account boat rotation
-		pos.z += speedFactor;
-	}
-
-	void moveRight(float deltaT) {
-		pos.z -= speedFactor;
-	}
-
-	void moveForward(float deltaT) {
-		pos.x -= speedFactor / 3;
-	}
-
-	void moveBackward(float deltaT) {
-		pos.x += speedFactor / 3;
-	}
-
-	Model getModel() {
-		return model;
-	}
-
-	DescriptorSet getDS() {
-		return DS;
-	}
-
-	glm::vec3 getPos() {
-		return pos;
-	}
-
-	void setPos(glm::vec3 newPos) {
-		pos = newPos;
-	}
-
-	void printPos() {
-		printf("Boat Position: (%.1f, %.1f, %.1f)\n", pos.x, pos.y, pos.z);
-	}
-};
-
 class Ocean {
 	protected:
-	DescriptorSet DS;
 	Model model;
 	Texture texture;
+	DescriptorSet DS;
 	glm::vec3 pos;
 	float speedFactor;
 	
@@ -199,6 +128,77 @@ class Ocean {
 		}
 };
 
+class Boat {
+
+	protected:
+	Model model;
+	Texture texture;
+	DescriptorSet DS;
+	glm::vec3 pos;
+	float speedFactor;
+
+	public:
+	void init(BaseProject *br, DescriptorSetLayout DSLobj) {
+		model.init(br, MODEL_PATH + "/shorterBoat.obj");
+		texture.init(br, TEXTURE_PATH + "/Boat.bmp");
+		DS.init(br, &DSLobj, {
+			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+			{1, TEXTURE, 0, &texture}
+		});
+
+		speedFactor = boatSpeed;
+		reset();
+		std::cout << ESC << GREEN << "Boat initialized" << RESET << std::endl;
+	}
+
+	void reset() {
+		pos = initialBoatPosition;
+	}
+
+	void cleanup() {
+		model.cleanup();
+		texture.cleanup();
+		DS.cleanup();
+	}
+
+	void moveLeft() {
+		// z because we need to take into account boat rotation
+		pos.z += speedFactor;
+	}
+
+	void moveRight() {
+		pos.z -= speedFactor;
+	}
+
+	void moveForward() {
+		pos.x -= speedFactor / 3;
+	}
+
+	void moveBackward() {
+		pos.x += speedFactor / 3;
+	}
+
+	Model getModel() {
+		return model;
+	}
+
+	DescriptorSet getDS() {
+		return DS;
+	}
+
+	glm::vec3 getPos() {
+		return pos;
+	}
+
+	void setPos(glm::vec3 newPos) {
+		pos = newPos;
+	}
+
+	void printPos() {
+		printf("Boat Position: (%.1f, %.1f, %.1f)\n", pos.x, pos.y, pos.z);
+	}
+};
+
 class Rock {
 	
 	protected:
@@ -229,7 +229,8 @@ class Rock {
 		// z in [leftBound, rightBound]
 		pos = glm::vec3(
 			glm::linearRand(horizon - rockGenDelta * 2.0f, horizon + rockGenDelta * 0.5f),
-			0, glm::linearRand(rightBound, leftBound)
+			0,
+			glm::linearRand(rightBound, leftBound)
 		);
 		// same for rotation
 		rot = glm::linearRand(0.0f, 360.0f);
@@ -555,41 +556,51 @@ class BoatRunner : public BaseProject {
 		}
 	}
 
+	// Here we handle object motion
 	void updatePosition(float accelerationFactor) {
 		
+		// To give the illusion of the boat moving forward,
+		// the ocean is moved backwards and the rocks are moved forward
 		ocean.moveForward(accelerationFactor);
 
 		for(auto & r : rocks) {
+			// Speed increases with time
 			r.moveForward(accelerationFactor);
+			// When rocks get behind the boat they are moved
+			// again in the field of view far from the boat
 			if(r.getPos().x > maxDepth) {
 				r.reset();
 			}
 		}
 
 		if (glfwGetKey(window, GLFW_KEY_A)) {
-			boat.moveLeft(accelerationFactor);
+			boat.moveLeft();
 		}
 		if (glfwGetKey(window, GLFW_KEY_D)) {
-			boat.moveRight(accelerationFactor);
+			boat.moveRight();
 		}
 		if (glfwGetKey(window, GLFW_KEY_W)) {
-			boat.moveForward(accelerationFactor);
+			boat.moveForward();
 		}
 		if (glfwGetKey(window, GLFW_KEY_S)) {
-			boat.moveBackward(accelerationFactor);
+			boat.moveBackward();
 		}
 	}
 
 	void detectCollisions() {
 		
-		if(!glm::all(glm::equal(boat.getPos(), oldBoatPos))) {
-			// boat.printPos();
-			oldBoatPos = boat.getPos();
-		}
+		// debugging purposes
+		// if(!glm::all(glm::equal(boat.getPos(), oldBoatPos))) {
+		// 	boat.printPos();
+		// 	oldBoatPos = boat.getPos();
+		// }
 		
 		// check for collisions beteween boat and rocks
 		for(auto & r : rocks) {
-			// r.printPos();
+
+			// if some rocks ends up with the same inside the area
+			// defined by the boat coordinates plus some margin
+			// the game is restarted
 			if(r.getPos().x <= boat.getPos().x + boatLength / 2 && r.getPos().x >= boat.getPos().x - boatLength / 2) {
 				if(r.getPos().z <= boat.getPos().z + boatWidth / 2 && r.getPos().z >= boat.getPos().z - boatWidth / 2) {
 
@@ -613,7 +624,7 @@ class BoatRunner : public BaseProject {
 			}
 		}
 
-		//check that the boat stays in the horizontal limits
+		// Bound checking for the boat
 		if(boat.getPos().z > leftBound) {
 			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, leftBound));
 		} else if(boat.getPos().z < rightBound) {
@@ -674,7 +685,6 @@ class BoatRunner : public BaseProject {
 	}
 };
 
-// This is the main: probably you do not need to touch this!
 int main() {
 
     BoatRunner app;
