@@ -46,7 +46,7 @@ static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
 
-static const int rocksCount = 10;
+static const int rocksCount = glm::linearRand(5, 10);      // Number of rocks
 static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock1scalingFactor = glm::vec3(0.3f);
 static const glm::vec3 rock2scalingFactor = glm::vec3(0.3f);
@@ -78,6 +78,12 @@ static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.5f, -4.0f);
 static const glm::vec3 cameraDirection = glm::vec3(0.0f, 1.5f, 0.0f);
 static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
+/* ------------------------------ CLASS/STRUCTURE DECLARATIONS ------------------------------ */
+
+enum rockType {R_TYPE_1, R_TYPE_2};
+
+enum gameState {PLAY, GAME_OVER};
+
 struct globalUniformBufferObject {
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
@@ -87,7 +93,6 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
 
-enum rockType {rock1, rock2};
 
 class Ocean {
 	protected:
@@ -213,21 +218,29 @@ class Rock {
 	
 	protected:
 	DescriptorSet DS;
+	int id;
 	rockType type;
+	float speedFactor;
 	glm::vec3 pos;
 	float rot;
-	int id;
-	float speedFactor;
 
 	public:
-	void init(BaseProject *br, DescriptorSetLayout DSLobj, Texture texture, int identifier, rockType type) {
+	void init(BaseProject *br, DescriptorSetLayout DSLobj, Texture *rockTextures, int newId) {
 		
+		id = newId;
+		int typeChoice = rand() % 2;
+		// if (typeChoice == 0) {
+		// 	type = R_TYPE_1;
+		// } else {
+		// 	type = R_TYPE_2;
+		// }
+		type = R_TYPE_1;
+
 		DS.init(br, &DSLobj, {
 			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-			{1, TEXTURE, 0, &texture}
+			{1, TEXTURE, 0, &rockTextures[typeChoice]}
 		});
-		
-		id = identifier;
+
 		speedFactor = rockSpeed;
 		reset();
 		std::cout << ESC << GREEN << "Rock " << id << " initialized" << RESET << std::endl;
@@ -303,11 +316,8 @@ class BoatRunner : public BaseProject {
 	Boat boat;
 	Ocean ocean;
 
-	Model M_Rock1;
-	Texture T_Rock1;
-
-	Model M_Rock2;
-	Texture T_Rock2;
+	Model rockModels[2];
+	Texture rockTextures[2];
 
 	vector<Rock> rocks;
 	DescriptorSet DS_global;
@@ -315,10 +325,11 @@ class BoatRunner : public BaseProject {
 	// glm::vec3 boatPosition;
 	glm::vec3 oldBoatPos = initialBoatPosition;
 
-	float score = 0.0f;
-	float highScore = (float) readScore("highscore.dat");
-	float oldScore = 0.0f;
-	float accFactor = 0.0f;
+	// game logic related variables
+	float score;
+	float highScore;
+	float accFactor;
+	gameState state;
 	
 	// application parameters:
     // Window size, titile and initial background
@@ -362,20 +373,16 @@ class BoatRunner : public BaseProject {
 		boat.init(this, DSLobj);
 		ocean.init(this, DSLobj);
 
-		M_Rock1.init(this, MODEL_PATH + "/Rock1.obj");
-		T_Rock1.init(this, TEXTURE_PATH + "/Rock1.png");
+		rockModels[0].init(this, MODEL_PATH + "/Rock1.obj");
+		rockTextures[0].init(this, TEXTURE_PATH + "/Rock1.png");
 
-		M_Rock2.init(this, MODEL_PATH + "/Rock2.obj");
-		T_Rock2.init(this, TEXTURE_PATH + "/Rock2.jpg");
+		rockModels[1].init(this, MODEL_PATH + "/Rock2.obj");
+		rockTextures[1].init(this, TEXTURE_PATH + "/Rock2.jpg");
 
 
 		for(int i = 0; i < rocksCount; i++) {
 			Rock rock;
-			if(i % 2 == 0) {
-				rock.init(this, DSLobj, T_Rock1, i, rock1);
-			} else {
-				rock.init(this, DSLobj, T_Rock2, i, rock2);
-			}
+			rock.init(this, DSLobj, rockTextures, i);
 			rocks.push_back(rock);
 		}
 
@@ -395,11 +402,11 @@ class BoatRunner : public BaseProject {
 		boat.cleanup();
 		ocean.cleanup();
 
-		T_Rock1.cleanup();
-		M_Rock1.cleanup();
+		rockTextures[0].cleanup();
+		rockTextures[1].cleanup();
 		
-		M_Rock2.cleanup();
-		T_Rock2.cleanup();
+		rockModels[0].cleanup();
+		rockModels[1].cleanup();
 
 		for(auto & r : rocks) {
 			r.cleanup();
@@ -456,29 +463,30 @@ class BoatRunner : public BaseProject {
 					static_cast<uint32_t>(ocean.getModel().indices.size()), 1, 0, 0, 0);
 
 		// Rocks
-		VkBuffer rock1VertexBuffers[] = {M_Rock1.vertexBuffer};
+		VkBuffer rock1VertexBuffers[] = {rockModels[0].vertexBuffer};
 		VkDeviceSize rock1Offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rock1VertexBuffers, rock1Offsets);
-		vkCmdBindIndexBuffer(commandBuffer, M_Rock1.indexBuffer, 0,
+		vkCmdBindIndexBuffer(commandBuffer, rockModels[0].indexBuffer, 0,
 								VK_INDEX_TYPE_UINT32);
 
-		VkBuffer rock2VertexBuffers[] = {M_Rock2.vertexBuffer};
+		VkBuffer rock2VertexBuffers[] = {rockModels[1].vertexBuffer};
 		VkDeviceSize rock2Offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rock2VertexBuffers, rock2Offsets);
-		vkCmdBindIndexBuffer(commandBuffer, M_Rock2.indexBuffer, 0,
+		vkCmdBindIndexBuffer(commandBuffer, rockModels[1].indexBuffer, 0,
 								VK_INDEX_TYPE_UINT32);
 		
 		for(auto & r : rocks) {
+			std::cout << "rocktype: " << r.getType() << std::endl;
 			vkCmdBindDescriptorSets(commandBuffer,
 							VK_PIPELINE_BIND_POINT_GRAPHICS,
 							P1.pipelineLayout, 1, 1, &r.getDS().descriptorSets[currentImage],
 							0, nullptr);
-			if(r.getType() == 1) {
+			if(r.getType() == R_TYPE_1) {
 				vkCmdDrawIndexed(commandBuffer,
-							static_cast<uint32_t>(M_Rock1.indices.size()), 1, 0, 0, 0);
+							static_cast<uint32_t>(rockModels[0].indices.size()), 1, 0, 0, 0);
 			} else {
 				vkCmdDrawIndexed(commandBuffer,
-							static_cast<uint32_t>(M_Rock2.indices.size()), 1, 0, 0, 0);
+							static_cast<uint32_t>(rockModels[1].indices.size()), 1, 0, 0, 0);
 			}
 		}
 	}
@@ -498,11 +506,6 @@ class BoatRunner : public BaseProject {
         float time = std::chrono::duration<float, std::chrono::seconds::period> (currentTime - startTime).count();
         float deltaT = time - lastTime;
         lastTime = time;
-		
-		score += deltaT;
-
-		// Updating score in console while running
-		std::cout << ESC << PURPLE << "score: " << score << RESET << '\r' << std::flush;
 
 		// progressive acceleration
 		if(accFactor >= maxAcceleration) {
@@ -512,7 +515,12 @@ class BoatRunner : public BaseProject {
 		}
 
 		updatePosition(accFactor, time);
-		detectCollisions();
+		if(state == PLAY) {
+			score += deltaT;
+			// Updating score in console while running
+			std::cout << ESC << PURPLE << "score: " << score << RESET << '\r' << std::flush;
+			detectCollisions();
+		}
 					
 		globalUniformBufferObject gubo{};
 		UniformBufferObject ubo{};
@@ -572,6 +580,15 @@ class BoatRunner : public BaseProject {
 
 		static bool isJumping = false;
 		static float jumpTime;
+
+		if(glfwGetKey(window, GLFW_KEY_R) && state == GAME_OVER) {
+			std::cout << "Restarting the game..." << std::endl;
+			initGame();
+		}
+
+		if(state == GAME_OVER) {
+			return;
+		}
 
 		// To give the illusion of the boat moving forward,
 		// the ocean is moved backwards and the rocks are moved forward
@@ -647,9 +664,8 @@ class BoatRunner : public BaseProject {
 								std::cout << "Failed to write High Score to file." << std::endl;
 							}
 						}
-						std::cout << "Restarting the game..." << std::endl;
 
-						initGame();
+						state = GAME_OVER;
 					}
 				}
 			}
@@ -669,10 +685,13 @@ class BoatRunner : public BaseProject {
 	}
 
 	void initGame() {
-		
-		oldScore = score;
+
+		// Reset boat, rocks and game logic variables
 		score = 0.0f;
+		highScore = (float) readScore("highscore.dat");
 		accFactor = 0.0f;
+		state = PLAY;
+
 		boat.reset();
 		for(auto & r : rocks) {
 			r.reset();
