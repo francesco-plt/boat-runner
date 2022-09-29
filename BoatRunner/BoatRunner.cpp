@@ -224,19 +224,18 @@ class Rock {
 	float rot;
 
 	public:
-	void init(BaseProject *br, DescriptorSetLayout DSLobj, Texture *rockTextures, int newId) {
-		
-		id = newId;
-		type = rand() % 2;
+	void init(BaseProject *br, DescriptorSetLayout DSLobj, Texture *rockTextures, int newId, int newType) {
 
 		DS.init(br, &DSLobj, {
 			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-			{1, TEXTURE, 0, &rockTextures[type]}
+			{1, TEXTURE, 0, &rockTextures[newType]}
 		});
 
+		id = newId;
+		type = newType;
 		speedFactor = rockSpeed;
 		reset();
-		std::cout << ESC << GREEN << "Rock " << id << " initialized" << RESET << std::endl;
+		std::cout << ESC << GREEN << "Rock " << id << " [type: " << type << "] initialized" << RESET << std::endl;
 	}
 
 	void reset() {
@@ -370,7 +369,7 @@ class BoatRunner : public BaseProject {
 		ocean.init(this, DSLobj);
 
 		rockModels[0].init(this, MODEL_PATH + "/Rock1.obj");
-		rockTextures[0].init(this, TEXTURE_PATH + "/Rock1.png");
+		rockTextures[0].init(this, TEXTURE_PATH + "/Rock1.jpg");
 
 		rockModels[1].init(this, MODEL_PATH + "/Rock2.obj");
 		rockTextures[1].init(this, TEXTURE_PATH + "/Rock2.jpg");
@@ -378,7 +377,7 @@ class BoatRunner : public BaseProject {
 
 		for(int i = 0; i < rockCount; i++) {
 			Rock rock;
-			rock.init(this, DSLobj, rockTextures, i);
+			rock.init(this, DSLobj, rockTextures, i, rand() % 2);
 			rocks.push_back(rock);
 		}
 
