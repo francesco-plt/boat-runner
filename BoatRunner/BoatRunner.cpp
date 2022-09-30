@@ -3,7 +3,7 @@ using namespace std;
 #include "BoatRunner.hpp"
 
 #include <fstream>
-#include<iostream>
+#include <iostream>
 #include <cmath>
 #include <vector>
 #include <string>
@@ -22,7 +22,7 @@ using namespace std;
 #define rockSpeed 0.4f
 #else
 #define boatSpeed 0.5f
-#define rockSpeed 0.8f
+#define rockSpeed 0.7f
 #endif
 
 #define ESC "\033[;"
@@ -39,6 +39,8 @@ static const string MODEL_PATH = "models";
 static const string TEXTURE_PATH = "textures";
 static const string FRAGMENT_SHADER = "shaders/frag.spv";
 static const string VERTEX_SHADER = "shaders/vert.spv";
+static const string ROCK_MODELS[2] = {"/Rock1Scaled.obj", "/Rock2.obj"}; 
+static const string ROCK_TEXTURES[2] = {"/Rock1.jpg", "/Rock2.jpg"};
 
 
 static const glm::mat4 I = glm::mat4(1.1f);           // Identity matrix
@@ -47,8 +49,9 @@ static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
 static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
-static const glm::vec3 rockScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
+static const float minRockScalingFactor = 0.25f;
+static const float maxRockScalingFactor = 0.35f;
 static const float oceanSpeed = 0.25f;
 static const float maxAcceleration = 3.0f;
 
@@ -58,19 +61,22 @@ static const float nearPlane = 0.1f;
 static const float farPlane = 100.0f;
 
 
-// static const int rockCount = 10;
 static const int horizon = -100.0f;
 static const int maxDepth = 10;
-static const int leftBound = 10;
-static const int rightBound = -10;
+static const int leftBound = 12;
+static const int rightBound = -12;
 static const int forwardBound = -4;
 static const int backwardBound = 2;
 static const int limitZ = 20;
 static const int rockGenDelta = 50;
-static const float boatWidth = 3.5f;
-static const float boatLength = 5.5f;
+static const float boatWidth = 2.5f;
+static const float boatLength = 4.5f;
 static const float boatHeight = 1.5f;
 static const float rockHeight = 1.0f;
+static const float rock1Width = 2.5f;
+static const float rock2Width = 1.8f;
+static const float rock1Length = 2.5f;
+static const float rock2Length = 1.8f;
 
 
 static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.5f, -4.0f);
@@ -91,7 +97,6 @@ struct globalUniformBufferObject {
 struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
-
 
 class Ocean {
 	protected:
@@ -141,6 +146,8 @@ class Boat {
 	Texture texture;
 	DescriptorSet DS;
 	glm::vec3 pos;
+	float height;
+	float width;
 	float speedFactor;
 
 	public:
@@ -153,6 +160,8 @@ class Boat {
 		});
 
 		speedFactor = boatSpeed;
+		height = boatHeight;
+		width = boatWidth;
 		reset();
 		std::cout << ESC << GREEN << "Boat initialized" << RESET << std::endl;
 	}
@@ -200,6 +209,14 @@ class Boat {
 		return DS;
 	}
 
+	float getHeight() {
+		return height;
+	}
+
+	float getWidth() {
+		return width;
+	}
+
 	glm::vec3 getPos() {
 		return pos;
 	}
@@ -216,23 +233,31 @@ class Boat {
 class Rock {
 	
 	protected:
+	Model model;
+	Texture texture;
 	DescriptorSet DS;
 	int id;
 	int type;
 	float speedFactor;
+	glm::vec3 scalingFactor;
 	glm::vec3 pos;
-	float rot;
+	float height;
+	float width;
+	float rotationFactor;
 
 	public:
-	void init(BaseProject *br, DescriptorSetLayout DSLobj, Texture *rockTextures, int newId, int newType) {
+	void init(BaseProject *br, DescriptorSetLayout DSLobj, int newId, int newType) {
 
+		model.init(br, MODEL_PATH + ROCK_MODELS[newType]);
+		texture.init(br, TEXTURE_PATH + ROCK_TEXTURES[newType]);
 		DS.init(br, &DSLobj, {
 			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-			{1, TEXTURE, 0, &rockTextures[newType]}
+			{1, TEXTURE, 0, &texture}
 		});
 
 		id = newId;
 		type = newType;
+		scalingFactor = glm::vec3(glm::linearRand(minRockScalingFactor, maxRockScalingFactor));
 		speedFactor = rockSpeed;
 		reset();
 		std::cout << ESC << GREEN << "Rock " << id << " [type: " << type << "] initialized" << RESET << std::endl;
@@ -242,16 +267,14 @@ class Rock {
 		// Randomly generated position according to a normal distribution
 		// x in [horizon - rockGenDelta], horizon + rockGenDelta]
 		// z in [leftBound, rightBound]
-		pos = glm::vec3(
-			glm::linearRand(horizon - rockGenDelta * 2.0f, horizon + rockGenDelta * 0.5f),
-			0,
-			glm::linearRand(rightBound, leftBound)
-		);
+		pos = glm::vec3(glm::linearRand(horizon - rockGenDelta * 2.0f, horizon + rockGenDelta * 0.5f), 0, glm::linearRand(rightBound, leftBound));
 		// same for rotation
-		rot = glm::linearRand(0.0f, 360.0f);
+		rotationFactor = glm::linearRand(0.0f, 360.0f);
 	}
 
 	void cleanup() {
+		model.cleanup();
+		texture.cleanup();
 		DS.cleanup();
 	}
 
@@ -263,18 +286,36 @@ class Rock {
 		return DS;
 	}
 
-	// getters and setters
+	Model getModel() {
+		return model;
+	}
+
+	Texture getTexture() {
+		return texture;
+	}
+
+	float getHeight() {
+		return height;
+	}
+
+	float getWidth() {
+		return width;
+	}
 	
 	glm::vec3 getPos() {
 		return pos;
 	}
 
 	float getRot() {
-		return rot;
+		return rotationFactor;
 	}
 
 	int getId() {
 		return id;
+	}
+
+	glm::vec3 getScalingFactor() {
+		return scalingFactor;
 	}
 
 	int getType() {
@@ -309,9 +350,6 @@ class BoatRunner : public BaseProject {
 	Boat boat;
 	Ocean ocean;
 
-	Model rockModels[2];
-	Texture rockTextures[2];
-
 	int rockCount;
 	vector<Rock> rocks;
 
@@ -335,8 +373,13 @@ class BoatRunner : public BaseProject {
         windowTitle = "Boat Runner";
         initialBackgroundColor = {0.0f, 0.5f, 0.8f, 1.0f};
 
-        // Descriptor pool sizes
+		/* Number of rocks is generated casually here
+		*  according to a normal distribution, the number
+		*  of rocks determines the difficulty of the game
+		*/ 
 		rockCount = floor(glm::linearRand(8.0f, 12.0f));
+
+        // Descriptor pool sizes
         uniformBlocksInPool = rockCount + 3;
         texturesInPool = rockCount + 2;
         setsInPool = rockCount + 3;
@@ -368,22 +411,17 @@ class BoatRunner : public BaseProject {
 		boat.init(this, DSLobj);
 		ocean.init(this, DSLobj);
 
-		rockModels[0].init(this, MODEL_PATH + "/Rock1.obj");
-		rockTextures[0].init(this, TEXTURE_PATH + "/Rock1.jpg");
-
-		rockModels[1].init(this, MODEL_PATH + "/Rock2.obj");
-		rockTextures[1].init(this, TEXTURE_PATH + "/Rock2.jpg");
-
-
 		for(int i = 0; i < rockCount; i++) {
 			Rock rock;
-			rock.init(this, DSLobj, rockTextures, i, rand() % 2);
+			rock.init(this, DSLobj, i, rand() % 2);
 			rocks.push_back(rock);
 		}
 
 		DS_global.init(this, &DSLglobal, {{0, UNIFORM, sizeof(globalUniformBufferObject), nullptr}});
 
-		highScore = (float) readScore("highscore.dat");
+		// game logic related code
+		highScore = (float) readScore("highscore.dat");	// reading old highscore from file
+		// detecting game difficulty basing on the casually generated number of rocks
 		string difficultyString;
 		std::cout << "rocks count: " << rockCount << std::endl;
 		if(rockCount >= 6 && rockCount < 9) {
@@ -409,12 +447,6 @@ class BoatRunner : public BaseProject {
 
 		boat.cleanup();
 		ocean.cleanup();
-
-		rockTextures[0].cleanup();
-		rockTextures[1].cleanup();
-		
-		rockModels[0].cleanup();
-		rockModels[1].cleanup();
 
 		for(auto & r : rocks) {
 			r.cleanup();
@@ -471,24 +503,21 @@ class BoatRunner : public BaseProject {
 					static_cast<uint32_t>(ocean.getModel().indices.size()), 1, 0, 0, 0);
 
 		// Rocks
-		VkBuffer rock1VertexBuffers[] = {rockModels[0].vertexBuffer};
-		VkDeviceSize rock1Offsets[] = {0};
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rock1VertexBuffers, rock1Offsets);
-		vkCmdBindIndexBuffer(commandBuffer, rockModels[0].indexBuffer, 0,
-								VK_INDEX_TYPE_UINT32);
-
-		VkBuffer rock2VertexBuffers[] = {rockModels[1].vertexBuffer};
-		VkDeviceSize rock2Offsets[] = {0};
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rock2VertexBuffers, rock2Offsets);
-		vkCmdBindIndexBuffer(commandBuffer, rockModels[1].indexBuffer, 0,
-								VK_INDEX_TYPE_UINT32);
-		
 		for(auto & r : rocks) {
+			VkBuffer rockVertexBuffers[] = {r.getModel().vertexBuffer};
+			VkDeviceSize rockOffsets[] = {0};
+			vkCmdBindVertexBuffers(commandBuffer, 0, 1, rockVertexBuffers, rockOffsets);
+
+			vkCmdBindIndexBuffer(commandBuffer, r.getModel().indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
 			vkCmdBindDescriptorSets(commandBuffer,
 							VK_PIPELINE_BIND_POINT_GRAPHICS,
 							P1.pipelineLayout, 1, 1, &r.getDS().descriptorSets[currentImage],
 							0, nullptr);
-				vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(rockModels[r.getType()].indices.size()), 1, 0, 0, 0);
+							
+			vkCmdDrawIndexed(commandBuffer,
+						static_cast<uint32_t>(r.getModel().indices.size()), 1, 0, 0, 0);
+
 		}
 	}
 
@@ -567,7 +596,7 @@ class BoatRunner : public BaseProject {
 		// Rocks
 		for(auto & r : rocks) {
 			ubo.model = I;
-			ubo.model = glm::scale(ubo.model, rockScalingFactor);
+			ubo.model = glm::scale(ubo.model, r.getScalingFactor());
 			ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0, 1, 0));
 			ubo.model = glm::translate(ubo.model, r.getPos());
 			ubo.model = glm::rotate(ubo.model, r.getRot(), yAxis);
@@ -648,13 +677,18 @@ class BoatRunner : public BaseProject {
 		// check for collisions beteween boat and rocks
 		for(auto & r : rocks) {
 
+			// debugging purposes
+			// if(r.getType() == 0) {
+			// 	r.printPos();
+			// }
+
 			// if some rocks ends up with the same inside the area
 			// defined by the boat coordinates plus some margin
 			// then we have a collision
 			if(r.getPos().x <= boat.getPos().x + boatLength / 2 && r.getPos().x >= boat.getPos().x - boatLength / 2) {
 				if(r.getPos().z <= boat.getPos().z + boatWidth / 2 && r.getPos().z >= boat.getPos().z - boatWidth / 2) {
 					if(rockHeight >= boat.getPos().y - boatHeight / 3) {
-						// printf("Collided in (%.1f, %.1f, %.1f) with rock %d.\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId());
+						// printf("Collided in (%.1f, %.1f, %.1f) with rock %d. Boat position: (%.1f, %.1f, %.1f).\n", r.getPos().x, r.getPos().y, r.getPos().z, r.getId(), boat.getPos().x, boat.getPos().y, boat.getPos().z);
 						std::cout << ESC << RED << "Final score: " << score << RESET << std::endl;
 						std::cout << "Press R to restart." << std::endl;
 						
@@ -679,6 +713,7 @@ class BoatRunner : public BaseProject {
 		}
 	}
 
+	// checking that the boat does not go outside the field of view
 	void boatBoundCheck() {
 		if(boat.getPos().z > leftBound) {
 			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, leftBound));
@@ -748,8 +783,8 @@ class BoatRunner : public BaseProject {
 
 int main() {
 
-	srand(time(0));
     BoatRunner app;
+	srand(time(0));
     try {
         app.run();
     } catch (const std::exception& e) {
