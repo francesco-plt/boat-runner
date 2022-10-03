@@ -39,8 +39,8 @@ static const string MODEL_PATH = "models";
 static const string TEXTURE_PATH = "textures";
 static const string FRAGMENT_SHADER = "shaders/frag.spv";
 static const string VERTEX_SHADER = "shaders/vert.spv";
-static const string ROCK_MODELS[2] = {"/Rock1Scaled.obj", "/Rock2.obj"}; 
-static const string ROCK_TEXTURES[2] = {"/Rock1.jpg", "/Rock2.jpg"};
+static const string ROCK_MODELS_PATH[2] = {"/Rock1Scaled.obj", "/Rock2.obj"}; 
+static const string ROCK_TEXTURES_PATH[2] = {"/Rock1.jpg", "/Rock2.jpg"};
 
 
 static const glm::mat4 I = glm::mat4(1.1f);           // Identity matrix
@@ -233,8 +233,6 @@ class Boat {
 class Rock {
 	
 	protected:
-	Model model;
-	Texture texture;
 	DescriptorSet DS;
 	int id;
 	int type;
@@ -246,13 +244,11 @@ class Rock {
 	float rotationFactor;
 
 	public:
-	void init(BaseProject *br, DescriptorSetLayout DSLobj, int newId, int newType) {
+	void init(BaseProject *br, DescriptorSetLayout DSLobj, int newId, int newType, Model newModel, Texture newTexture) {
 
-		model.init(br, MODEL_PATH + ROCK_MODELS[newType]);
-		texture.init(br, TEXTURE_PATH + ROCK_TEXTURES[newType]);
 		DS.init(br, &DSLobj, {
 			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-			{1, TEXTURE, 0, &texture}
+			{1, TEXTURE, 0, &newTexture}
 		});
 
 		id = newId;
@@ -273,8 +269,6 @@ class Rock {
 	}
 
 	void cleanup() {
-		model.cleanup();
-		texture.cleanup();
 		DS.cleanup();
 	}
 
@@ -284,14 +278,6 @@ class Rock {
 
 	DescriptorSet getDS() {
 		return DS;
-	}
-
-	Model getModel() {
-		return model;
-	}
-
-	Texture getTexture() {
-		return texture;
 	}
 
 	float getHeight() {
@@ -351,6 +337,8 @@ class BoatRunner : public BaseProject {
 	Ocean ocean;
 
 	int rockCount;
+	Model rockModels[2];
+	Texture rockTextures[2];
 	vector<Rock> rocks;
 
 	// glm::vec3 boatPosition;
@@ -411,9 +399,17 @@ class BoatRunner : public BaseProject {
 		boat.init(this, DSLobj);
 		ocean.init(this, DSLobj);
 
+		// Rocks
+		rockModels[0].init(this, MODEL_PATH + ROCK_MODELS_PATH[0]);
+		rockModels[1].init(this, MODEL_PATH + ROCK_MODELS_PATH[1]);
+		rockTextures[0].init(this, TEXTURE_PATH + ROCK_TEXTURES_PATH[0]);
+		rockTextures[1].init(this, TEXTURE_PATH + ROCK_TEXTURES_PATH[1]);
+
+		int rockSelection;
 		for(int i = 0; i < rockCount; i++) {
+			rockSelection = rand() % 2;
 			Rock rock;
-			rock.init(this, DSLobj, i, rand() % 2);
+			rock.init(this, DSLobj, i, rockSelection, rockModels[rockSelection], rockTextures[rockSelection]);
 			rocks.push_back(rock);
 		}
 
@@ -447,6 +443,12 @@ class BoatRunner : public BaseProject {
 
 		boat.cleanup();
 		ocean.cleanup();
+
+		rockModels[0].cleanup();
+		rockModels[1].cleanup();
+
+		rockTextures[0].cleanup();
+		rockTextures[1].cleanup();
 
 		for(auto & r : rocks) {
 			r.cleanup();
@@ -503,26 +505,42 @@ class BoatRunner : public BaseProject {
 					static_cast<uint32_t>(ocean.getModel().indices.size()), 1, 0, 0, 0);
 
 		// Rocks
+
+		//type 1
+		VkBuffer rockType1VertexBuffers[] = {rockModels[0].vertexBuffer};
+		VkDeviceSize rockType1offsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rockType1VertexBuffers, rockType1offsets);
+		vkCmdBindIndexBuffer(commandBuffer, rockModels[0].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		for(auto & r : rocks) {
-			VkBuffer rockVertexBuffers[] = {r.getModel().vertexBuffer};
-			VkDeviceSize rockOffsets[] = {0};
-			vkCmdBindVertexBuffers(commandBuffer, 0, 1, rockVertexBuffers, rockOffsets);
-
-			vkCmdBindIndexBuffer(commandBuffer, r.getModel().indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
+			if(r.getType() != 0) {
+				continue;
+			}
 			vkCmdBindDescriptorSets(commandBuffer,
 							VK_PIPELINE_BIND_POINT_GRAPHICS,
 							P1.pipelineLayout, 1, 1, &r.getDS().descriptorSets[currentImage],
 							0, nullptr);
-							
 			vkCmdDrawIndexed(commandBuffer,
-						static_cast<uint32_t>(r.getModel().indices.size()), 1, 0, 0, 0);
+						static_cast<uint32_t>(rockModels[0].indices.size()), 1, 0, 0, 0);
+		}
 
+		// type 2
+		VkBuffer rockType2VertexBuffers[] = {rockModels[1].vertexBuffer};
+		VkDeviceSize rockType2offsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, rockType2VertexBuffers, rockType2offsets);
+		vkCmdBindIndexBuffer(commandBuffer, rockModels[1].indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		for(auto & r : rocks) {
+			if(r.getType() != 1) {
+				continue;
+			}
+			vkCmdBindDescriptorSets(commandBuffer,
+							VK_PIPELINE_BIND_POINT_GRAPHICS,
+							P1.pipelineLayout, 1, 1, &r.getDS().descriptorSets[currentImage],
+							0, nullptr);
+			vkCmdDrawIndexed(commandBuffer,
+						static_cast<uint32_t>(rockModels[1].indices.size()), 1, 0, 0, 0);
 		}
 	}
 
-	// Here is where you update the uniforms.
-	// Very likely this will be where you will be writing the logic of your application.
 	void updateUniformBuffer(uint32_t currentImage) {
 
 		static auto startTime = std::chrono::high_resolution_clock::now();
@@ -538,7 +556,7 @@ class BoatRunner : public BaseProject {
         float deltaT = time - lastTime;
         lastTime = time;
 
-		// progressive acceleration
+		// progressive acceleration with max threeshold
 		if(accFactor >= maxAcceleration) {
 			accFactor = maxAcceleration;
 		} else {
@@ -550,6 +568,8 @@ class BoatRunner : public BaseProject {
 			score += deltaT;
 			// Updating score in console while running
 			std::cout << ESC << PURPLE << "score: " << score << RESET << '\r' << std::flush;
+
+			// object position checking
 			boatBoundCheck();
 			detectCollisions();
 		}
