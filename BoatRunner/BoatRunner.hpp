@@ -47,11 +47,11 @@
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 // Lesson 22.0
-const std::vector<const char *> validationLayers = {
+const vector<const char *> validationLayers = {
     "VK_LAYER_KHRONOS_validation"};
 
 // Lesson 13
-const std::vector<const char *> deviceExtensions = {
+const vector<const char *> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 // Lesson 17
@@ -69,9 +69,9 @@ struct Vertex {
     return bindingDescription;
   }
 
-  static std::array<VkVertexInputAttributeDescription, 3>
+  static array<VkVertexInputAttributeDescription, 3>
   getAttributeDescriptions() {
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+    array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
     attributeDescriptions[0].binding = 0;
     attributeDescriptions[0].location = 0;
@@ -94,8 +94,8 @@ struct Vertex {
 
 // Lesson 13
 struct QueueFamilyIndices {
-  std::optional<uint32_t> graphicsFamily;
-  std::optional<uint32_t> presentFamily;
+  optional<uint32_t> graphicsFamily;
+  optional<uint32_t> presentFamily;
 
   bool isComplete() {
     return graphicsFamily.has_value() && presentFamily.has_value();
@@ -105,8 +105,8 @@ struct QueueFamilyIndices {
 // Lesson 14
 struct SwapChainSupportDetails {
   VkSurfaceCapabilitiesKHR capabilities;
-  std::vector<VkSurfaceFormatKHR> formats;
-  std::vector<VkPresentModeKHR> presentModes;
+  vector<VkSurfaceFormatKHR> formats;
+  vector<VkPresentModeKHR> presentModes;
 };
 
 // For debugging - Lesson 22.0
@@ -137,7 +137,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance,
 // For debugging - Lesson 22.0
 struct errorcode {
   VkResult resultCode;
-  std::string meaning;
+  string meaning;
 } ErrorCodes[] = {
     {VK_NOT_READY, "Not Ready"},
     {VK_TIMEOUT, "Timeout"},
@@ -170,32 +170,32 @@ struct errorcode {
 
 void PrintVkError(VkResult result) {
   const int numErrorCodes = sizeof(ErrorCodes) / sizeof(struct errorcode);
-  std::string meaning = "";
+  string meaning = "";
   for (int i = 0; i < numErrorCodes; i++) {
     if (result == ErrorCodes[i].resultCode) {
       meaning = ErrorCodes[i].meaning;
       break;
     }
   }
-  std::cout << "Error: " << result << ", " << meaning << "\n";
+  cout << "Error: " << result << ", " << meaning << "\n";
 }
 
 class BaseProject;
 
 struct Model {
   BaseProject *BP;
-  std::vector<Vertex> vertices;
-  std::vector<uint32_t> indices;
+  vector<Vertex> vertices;
+  vector<uint32_t> indices;
   VkBuffer vertexBuffer;
   VkDeviceMemory vertexBufferMemory;
   VkBuffer indexBuffer;
   VkDeviceMemory indexBufferMemory;
 
-  void loadModel(std::string file);
+  void loadModel(string file);
   void createIndexBuffer();
   void createVertexBuffer();
 
-  void init(BaseProject *bp, std::string file);
+  void init(BaseProject *bp, string file);
   void cleanup();
 };
 
@@ -207,11 +207,11 @@ struct Texture {
   VkImageView textureImageView;
   VkSampler textureSampler;
 
-  void createTextureImage(std::string file);
+  void createTextureImage(string file);
   void createTextureImageView();
   void createTextureSampler();
 
-  void init(BaseProject *bp, std::string file);
+  void init(BaseProject *bp, string file);
   void cleanup();
 };
 
@@ -225,7 +225,7 @@ struct DescriptorSetLayout {
   BaseProject *BP;
   VkDescriptorSetLayout descriptorSetLayout;
 
-  void init(BaseProject *bp, std::vector<DescriptorSetLayoutBinding> B);
+  void init(BaseProject *bp, vector<DescriptorSetLayoutBinding> B);
   void cleanup();
 };
 
@@ -234,11 +234,11 @@ struct Pipeline {
   VkPipeline graphicsPipeline;
   VkPipelineLayout pipelineLayout;
 
-  void init(BaseProject *bp, const std::string &VertShader,
-            const std::string &FragShader,
-            std::vector<DescriptorSetLayout *> D);
-  VkShaderModule createShaderModule(const std::vector<char> &code);
-  static std::vector<char> readFile(const std::string &filename);
+  void init(BaseProject *bp, const string &VertShader,
+            const string &FragShader,
+            vector<DescriptorSetLayout *> D);
+  VkShaderModule createShaderModule(const vector<char> &code);
+  static vector<char> readFile(const string &filename);
   void cleanup();
 };
 
@@ -254,14 +254,14 @@ struct DescriptorSetElement {
 struct DescriptorSet {
   BaseProject *BP;
 
-  std::vector<std::vector<VkBuffer>> uniformBuffers;
-  std::vector<std::vector<VkDeviceMemory>> uniformBuffersMemory;
-  std::vector<VkDescriptorSet> descriptorSets;
+  vector<vector<VkBuffer>> uniformBuffers;
+  vector<vector<VkDeviceMemory>> uniformBuffersMemory;
+  vector<VkDescriptorSet> descriptorSets;
 
-  std::vector<bool> toFree;
+  vector<bool> toFree;
 
   void init(BaseProject *bp, DescriptorSetLayout *L,
-            std::vector<DescriptorSetElement> E);
+            vector<DescriptorSetElement> E);
   void cleanup();
 };
 
@@ -286,7 +286,7 @@ class BaseProject {
  protected:
   uint32_t windowWidth;
   uint32_t windowHeight;
-  std::string windowTitle;
+  string windowTitle;
   VkClearColorValue initialBackgroundColor;
   int uniformBlocksInPool;
   int texturesInPool;
@@ -305,14 +305,14 @@ class BaseProject {
   VkQueue graphicsQueue;
   VkQueue presentQueue;
   VkCommandPool commandPool;
-  std::vector<VkCommandBuffer> commandBuffers;
+  vector<VkCommandBuffer> commandBuffers;
 
   // Lesson 14
   VkSwapchainKHR swapChain;
-  std::vector<VkImage> swapChainImages;
+  vector<VkImage> swapChainImages;
   VkFormat swapChainImageFormat;
   VkExtent2D swapChainExtent;
-  std::vector<VkImageView> swapChainImageViews;
+  vector<VkImageView> swapChainImageViews;
 
   // Lesson 19
   VkRenderPass renderPass;
@@ -329,23 +329,23 @@ class BaseProject {
   VkImageView depthImageView;
 
   // L22.2 --- Frame buffers
-  std::vector<VkFramebuffer> swapChainFramebuffers;
+  vector<VkFramebuffer> swapChainFramebuffers;
   size_t currentFrame = 0;
 
   // L22.3 --- Synchronization objects
-  std::vector<VkSemaphore> imageAvailableSemaphores;
-  std::vector<VkSemaphore> renderFinishedSemaphores;
-  std::vector<VkFence> inFlightFences;
-  std::vector<VkFence> imagesInFlight;
+  vector<VkSemaphore> imageAvailableSemaphores;
+  vector<VkSemaphore> renderFinishedSemaphores;
+  vector<VkFence> inFlightFences;
+  vector<VkFence> imagesInFlight;
 
   //  Skybox pipeline
  	VkDescriptorSetLayout SkyBoxDescriptorSetLayout; // for skybox
   	VkPipelineLayout SkyBoxPipelineLayout;	// for skybox
 	VkPipeline SkyBoxPipeline;		// for skybox
-	std::vector<VkBuffer> SkyBoxUniformBuffers;
-	std::vector<VkDeviceMemory> SkyBoxUniformBuffersMemory;
+	vector<VkBuffer> SkyBoxUniformBuffers;
+	vector<VkDeviceMemory> SkyBoxUniformBuffersMemory;
 	// to access uniforms in the pipeline
-	std::vector<VkDescriptorSet> SkyBoxDescriptorSets;
+	vector<VkDescriptorSet> SkyBoxDescriptorSets;
 
   // Lesson 12
   void initWindow() {
@@ -400,7 +400,7 @@ class BaseProject {
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
     // m1 fix
-    // std::vector<const char*> instanceExtensions =
+    // vector<const char*> instanceExtensions =
     // {
     //     VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
     // };
@@ -417,7 +417,7 @@ class BaseProject {
 
     // For debugging [Lesson 22] - Start
     if (!checkValidationLayerSupport()) {
-      throw std::runtime_error(
+      throw runtime_error(
           "validation layers requested, but not available!");
     }
 
@@ -434,17 +434,17 @@ class BaseProject {
 
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create instance!");
+      throw runtime_error("failed to create instance!");
     }
   }
 
   // Lessons 12 and L22.0
-  std::vector<const char *> getRequiredExtensions() {
+  vector<const char *> getRequiredExtensions() {
     uint32_t glfwExtensionCount = 0;
     const char **glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    std::vector<const char *> extensions(glfwExtensions,
+    vector<const char *> extensions(glfwExtensions,
                                          glfwExtensions + glfwExtensionCount);
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
@@ -456,7 +456,7 @@ class BaseProject {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
-    std::vector<VkLayerProperties> availableLayers(layerCount);
+    vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     for (const char *layerName : validationLayers) {
@@ -498,9 +498,9 @@ class BaseProject {
                 const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
                 void *pUserData) {
     // printing debug info in case of errors
-    const auto msg = std::string(pCallbackData->pMessage);
-    if (msg.find("Error") != std::string::npos)
-      std::cerr << ESC << RED << "Validation Layer Error: " << pCallbackData->pMessage << RESET << "\n" << std::endl;
+    const auto msg = string(pCallbackData->pMessage);
+    if (msg.find("Error") != string::npos)
+      cerr << ESC << RED << "Validation Layer Error: " << pCallbackData->pMessage << RESET << "\n" << endl;
     return VK_FALSE;
   }
 
@@ -511,7 +511,7 @@ class BaseProject {
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr,
                                      &debugMessenger) != VK_SUCCESS) {
-      throw std::runtime_error("failed to set up debug messenger!");
+      throw runtime_error("failed to set up debug messenger!");
     }
   }
 
@@ -519,7 +519,7 @@ class BaseProject {
   void createSurface() {
     if (glfwCreateWindowSurface(instance, window, nullptr, &surface) !=
         VK_SUCCESS) {
-      throw std::runtime_error("failed to create window surface!");
+      throw runtime_error("failed to create window surface!");
     }
   }
 
@@ -528,25 +528,25 @@ class BaseProject {
     uint32_t deviceCount = 0;
     result = vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
     if (result != VK_SUCCESS || deviceCount <= 0) {
-      throw std::runtime_error("failed to find GPUs with Vulkan Support!");
+      throw runtime_error("failed to find GPUs with Vulkan Support!");
     }
-    std::cout << deviceCount << " Physical Device(s) found \n\n";
+    cout << deviceCount << " Physical Device(s) found \n\n";
 
-    std::vector<VkPhysicalDevice> devices(deviceCount);
+    vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-    std::cout << "Physical devices found: " << deviceCount << "\n";
+    cout << "Physical devices found: " << deviceCount << "\n";
 
     for (const auto &device : devices) {
       if (isDeviceSuitable(device)) {
         physicalDevice = device;
-        std::cout << "Suitable Physical Device Found (" << device << ")\n\n";
+        cout << "Suitable Physical Device Found (" << device << ")\n\n";
         break;
       }
     }
 
     if (physicalDevice == VK_NULL_HANDLE) {
-      throw std::runtime_error("failed to find a suitable GPU!");
+      throw runtime_error("failed to find a suitable GPU!");
     }
   }
 
@@ -556,70 +556,70 @@ class BaseProject {
     VkPhysicalDeviceProperties deviceProperties;
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
 
-    std::cout << "\tAPI version: 0x" << std::hex << deviceProperties.apiVersion
+    cout << "\tAPI version: 0x" << hex << deviceProperties.apiVersion
               << "\n";
-    std::cout << "\tDriver version: 0x" << std::hex
+    cout << "\tDriver version: 0x" << hex
               << deviceProperties.driverVersion << "\n";
-    std::cout << "\tVendor ID: 0x" << std::hex << deviceProperties.vendorID
+    cout << "\tVendor ID: 0x" << hex << deviceProperties.vendorID
               << "\n";
-    std::cout << "\tDevice ID: 0x" << std::hex << deviceProperties.deviceID
+    cout << "\tDevice ID: 0x" << hex << deviceProperties.deviceID
               << "\n";
-    std::cout << "\tPhysical Device Type: " << deviceProperties.deviceType
+    cout << "\tPhysical Device Type: " << deviceProperties.deviceType
               << "\t";
     if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU)
-      std::cout << " (Discrete GPU)\n";
+      cout << " (Discrete GPU)\n";
     if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU)
-      std::cout << " (Integrated GPU)\n";
+      cout << " (Integrated GPU)\n";
     if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU)
-      std::cout << " (Virtual GPU)\n";
+      cout << " (Virtual GPU)\n";
     if (deviceProperties.deviceType == VK_PHYSICAL_DEVICE_TYPE_CPU)
-      std::cout << " (CPU)\n";
-    std::cout << "\tDevice Name: " << deviceProperties.deviceName << "\n";
+      cout << " (CPU)\n";
+    cout << "\tDevice Name: " << deviceProperties.deviceName << "\n";
 
     // Show device features
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
-    std::cout << "\n\tPhysical Device Features:\n";
-    std::cout << "\t\tgeometryShader = " << deviceFeatures.geometryShader
+    cout << "\n\tPhysical Device Features:\n";
+    cout << "\t\tgeometryShader = " << deviceFeatures.geometryShader
               << "\n";
-    std::cout << "\t\ttessellationShader = "
+    cout << "\t\ttessellationShader = "
               << deviceFeatures.tessellationShader << "\n";
-    std::cout << "\t\tmultiDrawIndirect = " << deviceFeatures.multiDrawIndirect
+    cout << "\t\tmultiDrawIndirect = " << deviceFeatures.multiDrawIndirect
               << "\n";
-    std::cout << "\t\twideLines = " << deviceFeatures.wideLines << "\n";
-    std::cout << "\t\tlargePoints = " << deviceFeatures.largePoints << "\n";
-    std::cout << "\t\tmultiViewport = " << deviceFeatures.multiViewport << "\n";
-    std::cout << "\t\tocclusionQueryPrecise = "
+    cout << "\t\twideLines = " << deviceFeatures.wideLines << "\n";
+    cout << "\t\tlargePoints = " << deviceFeatures.largePoints << "\n";
+    cout << "\t\tmultiViewport = " << deviceFeatures.multiViewport << "\n";
+    cout << "\t\tocclusionQueryPrecise = "
               << deviceFeatures.occlusionQueryPrecise << "\n";
-    std::cout << "\t\tpipelineStatisticsQuery = "
+    cout << "\t\tpipelineStatisticsQuery = "
               << deviceFeatures.pipelineStatisticsQuery << "\n";
-    std::cout << "\t\tshaderFloat64 = " << deviceFeatures.shaderFloat64 << "\n";
-    std::cout << "\t\tshaderInt64 = " << deviceFeatures.shaderInt64 << "\n";
-    std::cout << "\t\tshaderInt16 = " << deviceFeatures.shaderInt16 << "\n";
+    cout << "\t\tshaderFloat64 = " << deviceFeatures.shaderFloat64 << "\n";
+    cout << "\t\tshaderInt64 = " << deviceFeatures.shaderInt64 << "\n";
+    cout << "\t\tshaderInt16 = " << deviceFeatures.shaderInt16 << "\n";
 
     // Show device memory properties
     VkPhysicalDeviceMemoryProperties vpdmp;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &vpdmp);
 
-    std::cout << "\n\tMemory Types: " << vpdmp.memoryTypeCount << "\n";
+    cout << "\n\tMemory Types: " << vpdmp.memoryTypeCount << "\n";
     for (unsigned int i = 0; i < vpdmp.memoryTypeCount; i++) {
       VkMemoryType vmt = vpdmp.memoryTypes[i];
-      std::cout << "\t\tMemory: " << i << ":";
+      cout << "\t\tMemory: " << i << ":";
       if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0)
-        std::cout << " DeviceLocal";
+        cout << " DeviceLocal";
       if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) != 0)
-        std::cout << " HostVisible";
+        cout << " HostVisible";
       if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) != 0)
-        std::cout << " HostCoherent";
+        cout << " HostCoherent";
       if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) != 0)
-        std::cout << " HostCached";
+        cout << " HostCached";
       if ((vmt.propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) != 0)
-        std::cout << " LazilyAllocated";
-      std::cout << "\n";
+        cout << " LazilyAllocated";
+      cout << "\n";
     }
 
-    std::cout << "\n";
+    cout << "\n";
   }
 
   // Lesson 13
@@ -650,7 +650,7 @@ class BaseProject {
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
                                              nullptr);
 
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+    vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount,
                                              queueFamilies.data());
 
@@ -680,11 +680,11 @@ class BaseProject {
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
                                          nullptr);
 
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+    vector<VkExtensionProperties> availableExtensions(extensionCount);
     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount,
                                          availableExtensions.data());
 
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(),
+    set<string> requiredExtensions(deviceExtensions.begin(),
                                              deviceExtensions.end());
 
     for (const auto &extension : availableExtensions) {
@@ -727,8 +727,8 @@ class BaseProject {
   void createLogicalDevice() {
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(),
+    vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+    set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(),
                                               indices.presentFamily.value()};
 
     float queuePriority = 1.0f;
@@ -766,9 +766,9 @@ class BaseProject {
 
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create logical device!");
+      throw runtime_error("failed to create logical device!");
     }
-    std::cout << "Logical Device Created (" << device << ")\n\n";
+    cout << "Logical Device Created (" << device << ")\n\n";
 
     vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
@@ -825,11 +825,11 @@ class BaseProject {
         vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create swap chain!");
+      throw runtime_error("failed to create swap chain!");
     }
-    std::cout << "Swap chain created "
+    cout << "Swap chain created "
               << "(" << swapChain << ")\n"
-              << std::endl;
+              << endl;
 
     vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
     swapChainImages.resize(imageCount);
@@ -842,7 +842,7 @@ class BaseProject {
 
   // Lesson 14
   VkSurfaceFormatKHR chooseSwapSurfaceFormat(
-      const std::vector<VkSurfaceFormatKHR> &availableFormats) {
+      const vector<VkSurfaceFormatKHR> &availableFormats) {
     for (const auto &availableFormat : availableFormats) {
       if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
           availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
@@ -854,7 +854,7 @@ class BaseProject {
 
   // Lesson 14
   VkPresentModeKHR chooseSwapPresentMode(
-      const std::vector<VkPresentModeKHR> &availablePresentModes) {
+      const vector<VkPresentModeKHR> &availablePresentModes) {
     for (const auto &availablePresentMode : availablePresentModes) {
       if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
         return availablePresentMode;
@@ -873,12 +873,12 @@ class BaseProject {
 
       VkExtent2D actualExtent = {static_cast<uint32_t>(width),
                                  static_cast<uint32_t>(height)};
-      actualExtent.width = std::max(
+      actualExtent.width = max(
           capabilities.minImageExtent.width,
-          std::min(capabilities.maxImageExtent.width, actualExtent.width));
-      actualExtent.height = std::max(
+          min(capabilities.maxImageExtent.width, actualExtent.width));
+      actualExtent.height = max(
           capabilities.minImageExtent.height,
-          std::min(capabilities.maxImageExtent.height, actualExtent.height));
+          min(capabilities.maxImageExtent.height, actualExtent.height));
       return actualExtent;
     }
   }
@@ -892,7 +892,7 @@ class BaseProject {
           createImageView(swapChainImages[i], swapChainImageFormat,
                           VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-      std::cout << "Image View created (" << swapChainImageViews[i] << ")\n\n";
+      cout << "Image View created (" << swapChainImageViews[i] << ")\n\n";
     }
   }
 
@@ -914,10 +914,10 @@ class BaseProject {
     VkImageView imageView;
 
     VkResult result = vkCreateImageView(device, &viewInfo, nullptr, &imageView);
-    std::cout << "\nImage View created (" << imageView << ")\n";
+    cout << "\nImage View created (" << imageView << ")\n";
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("Failed to create image view!");
+      throw runtime_error("Failed to create image view!");
     }
 
     return imageView;
@@ -969,7 +969,7 @@ class BaseProject {
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment,
+    array<VkAttachmentDescription, 2> attachments = {colorAttachment,
                                                           depthAttachment};
 
     VkRenderPassCreateInfo renderPassInfo{};
@@ -986,7 +986,7 @@ class BaseProject {
         vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create render pass!");
+      throw runtime_error("failed to create render pass!");
     }
   }
 
@@ -994,7 +994,7 @@ class BaseProject {
   void createFramebuffers() {
     swapChainFramebuffers.resize(swapChainImageViews.size());
     for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-      std::array<VkImageView, 2> attachments = {swapChainImageViews[i],
+      array<VkImageView, 2> attachments = {swapChainImageViews[i],
                                                 depthImageView};
 
       VkFramebufferCreateInfo framebufferInfo{};
@@ -1012,7 +1012,7 @@ class BaseProject {
                                             &swapChainFramebuffers[i]);
       if (result != VK_SUCCESS) {
         PrintVkError(result);
-        throw std::runtime_error("failed to create framebuffer!");
+        throw runtime_error("failed to create framebuffer!");
       }
     }
   }
@@ -1030,9 +1030,9 @@ class BaseProject {
         vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create command pool!");
+      throw runtime_error("failed to create command pool!");
     }
-    std::cout << "Command Pool Created (" << commandPool << ")\n\n";
+    cout << "Command Pool Created (" << commandPool << ")\n\n";
   }
 
   // Lesson 22.1
@@ -1072,7 +1072,7 @@ class BaseProject {
     VkResult result = vkCreateImage(device, &imageInfo, nullptr, &image);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create image!");
+      throw runtime_error("failed to create image!");
     }
 
     VkMemoryRequirements memRequirements;
@@ -1085,7 +1085,7 @@ class BaseProject {
         findMemoryType(memRequirements.memoryTypeBits, properties);
     if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) !=
         VK_SUCCESS) {
-      throw std::runtime_error("failed to allocate image memory!");
+      throw runtime_error("failed to allocate image memory!");
     }
 
     vkBindImageMemory(device, image, imageMemory, 0);
@@ -1100,7 +1100,7 @@ class BaseProject {
 
     if (!(formatProperties.optimalTilingFeatures &
           VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
-      throw std::runtime_error(
+      throw runtime_error(
           "texture image format does not support linear blitting!");
     }
 
@@ -1274,7 +1274,7 @@ class BaseProject {
     VkResult result = vkCreateBuffer(device, &bufferInfo, nullptr, &buffer);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create vertex buffer!");
+      throw runtime_error("failed to create vertex buffer!");
     }
 
     VkMemoryRequirements memRequirements;
@@ -1289,7 +1289,7 @@ class BaseProject {
     result = vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to allocate vertex buffer memory!");
+      throw runtime_error("failed to allocate vertex buffer memory!");
     }
 
     vkBindBufferMemory(device, buffer, bufferMemory, 0);
@@ -1309,12 +1309,12 @@ class BaseProject {
       }
     }
 
-    throw std::runtime_error("failed to find suitable memory type!");
+    throw runtime_error("failed to find suitable memory type!");
   }
 
   // Lesson 21
   void createDescriptorPool() {
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount =
         static_cast<uint32_t>(uniformBlocksInPool * swapChainImages.size());
@@ -1336,7 +1336,7 @@ class BaseProject {
         vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool);
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to create descriptor pool!");
+      throw runtime_error("failed to create descriptor pool!");
     }
   }
 
@@ -1357,7 +1357,7 @@ class BaseProject {
         vkAllocateCommandBuffers(device, &allocInfo, commandBuffers.data());
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw std::runtime_error("failed to allocate command buffers!");
+      throw runtime_error("failed to allocate command buffers!");
     }
 
     // Lesson 22.5 --- Draw calls
@@ -1369,7 +1369,7 @@ class BaseProject {
       beginInfo.pInheritanceInfo = nullptr;  // Optional
 
       if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("failed to begin recording command buffer!");
+        throw runtime_error("failed to begin recording command buffer!");
       }
 
       VkRenderPassBeginInfo renderPassInfo{};
@@ -1379,7 +1379,7 @@ class BaseProject {
       renderPassInfo.renderArea.offset = {0, 0};
       renderPassInfo.renderArea.extent = swapChainExtent;
 
-      std::array<VkClearValue, 2> clearValues{};
+      array<VkClearValue, 2> clearValues{};
       clearValues[0].color = initialBackgroundColor;
       clearValues[1].depthStencil = {1.0f, 0};
 
@@ -1395,7 +1395,7 @@ class BaseProject {
       vkCmdEndRenderPass(commandBuffers[i]);
 
       if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
-        throw std::runtime_error("failed to record command buffer!");
+        throw runtime_error("failed to record command buffer!");
       }
     }
   }
@@ -1426,7 +1426,7 @@ class BaseProject {
         PrintVkError(result1);
         PrintVkError(result2);
         PrintVkError(result3);
-        throw std::runtime_error(
+        throw runtime_error(
             "failed to create synchronization objects for a frame!!");
       }
     }
@@ -1479,7 +1479,7 @@ class BaseProject {
 
     if (vkQueueSubmit(graphicsQueue, 1, &submitInfo,
                       inFlightFences[currentFrame]) != VK_SUCCESS) {
-      throw std::runtime_error("failed to submit draw command buffer!");
+      throw runtime_error("failed to submit draw command buffer!");
     }
 
     VkPresentInfoKHR presentInfo{};
@@ -1549,19 +1549,19 @@ class BaseProject {
     glfwTerminate();
 
 
-    std::cout << "Cleanup done..." << std::endl;
+    cout << "Cleanup done..." << endl;
   }
 };
 
-void Model::loadModel(std::string file) {
+void Model::loadModel(string file) {
   tinyobj::attrib_t attrib;
-  std::vector<tinyobj::shape_t> shapes;
-  std::vector<tinyobj::material_t> materials;
-  std::string warn, err;
+  vector<tinyobj::shape_t> shapes;
+  vector<tinyobj::material_t> materials;
+  string warn, err;
 
   if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
                         file.c_str())) {
-    throw std::runtime_error(warn + err);
+    throw runtime_error(warn + err);
   }
 
   for (const auto &shape : shapes) {
@@ -1614,7 +1614,7 @@ void Model::createIndexBuffer() {
   vkUnmapMemory(BP->device, indexBufferMemory);
 }
 
-void Model::init(BaseProject *bp, std::string file) {
+void Model::init(BaseProject *bp, string file) {
   BP = bp;
   loadModel(file);
   createVertexBuffer();
@@ -1628,17 +1628,17 @@ void Model::cleanup() {
   vkFreeMemory(BP->device, vertexBufferMemory, nullptr);
 }
 
-void Texture::createTextureImage(std::string file) {
+void Texture::createTextureImage(string file) {
   int texWidth, texHeight, texChannels;
   stbi_uc *pixels = stbi_load(file.c_str(), &texWidth, &texHeight, &texChannels,
                               STBI_rgb_alpha);
   if (!pixels) {
-    throw std::runtime_error("failed to load texture image!");
+    throw runtime_error("failed to load texture image!");
   }
 
   VkDeviceSize imageSize = texWidth * texHeight * 4;
   mipLevels = static_cast<uint32_t>(
-                  std::floor(std::log2(std::max(texWidth, texHeight)))) +
+                  floor(log2(max(texWidth, texHeight)))) +
               1;
 
   VkBuffer stagingBuffer;
@@ -1704,11 +1704,11 @@ void Texture::createTextureSampler() {
       vkCreateSampler(BP->device, &samplerInfo, nullptr, &textureSampler);
   if (result != VK_SUCCESS) {
     PrintVkError(result);
-    throw std::runtime_error("failed to create texture sampler!");
+    throw runtime_error("failed to create texture sampler!");
   }
 }
 
-void Texture::init(BaseProject *bp, std::string file) {
+void Texture::init(BaseProject *bp, string file) {
   BP = bp;
   createTextureImage(file);
   createTextureImageView();
@@ -1722,16 +1722,16 @@ void Texture::cleanup() {
   vkFreeMemory(BP->device, textureImageMemory, nullptr);
 }
 
-void Pipeline::init(BaseProject *bp, const std::string &VertShader,
-                    const std::string &FragShader,
-                    std::vector<DescriptorSetLayout *> D) {
+void Pipeline::init(BaseProject *bp, const string &VertShader,
+                    const string &FragShader,
+                    vector<DescriptorSetLayout *> D) {
   BP = bp;
 
   auto vertShaderCode = readFile(VertShader);
   auto fragShaderCode = readFile(FragShader);
 
-  std::cout << "Vertex shader length: " << vertShaderCode.size() << "\n";
-  std::cout << "Fragment shader length: " << fragShaderCode.size() << "\n";
+  cout << "Vertex shader length: " << vertShaderCode.size() << "\n";
+  cout << "Fragment shader length: " << fragShaderCode.size() << "\n";
 
   VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
   VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -1840,7 +1840,7 @@ void Pipeline::init(BaseProject *bp, const std::string &VertShader,
   colorBlending.blendConstants[3] = 0.0f;  // Optional
 
   // Lesson 21
-  std::vector<VkDescriptorSetLayout> DSL(D.size());
+  vector<VkDescriptorSetLayout> DSL(D.size());
   for (int i = 0; i < D.size(); i++) {
     DSL[i] = D[i]->descriptorSetLayout;
   }
@@ -1856,7 +1856,7 @@ void Pipeline::init(BaseProject *bp, const std::string &VertShader,
                                            nullptr, &pipelineLayout);
   if (result != VK_SUCCESS) {
     PrintVkError(result);
-    throw std::runtime_error("failed to create pipeline layout!");
+    throw runtime_error("failed to create pipeline layout!");
   }
 
   // Lesson 19
@@ -1895,7 +1895,7 @@ void Pipeline::init(BaseProject *bp, const std::string &VertShader,
                                      &pipelineInfo, nullptr, &graphicsPipeline);
   if (result != VK_SUCCESS) {
     PrintVkError(result);
-    throw std::runtime_error("failed to create graphics pipeline!");
+    throw runtime_error("failed to create graphics pipeline!");
   }
 
   vkDestroyShaderModule(BP->device, fragShaderModule, nullptr);
@@ -1903,14 +1903,14 @@ void Pipeline::init(BaseProject *bp, const std::string &VertShader,
 }
 
 // Lesson 18
-std::vector<char> Pipeline::readFile(const std::string &filename) {
-  std::ifstream file(filename, std::ios::ate | std::ios::binary);
+vector<char> Pipeline::readFile(const string &filename) {
+  ifstream file(filename, ios::ate | ios::binary);
   if (!file.is_open()) {
-    throw std::runtime_error("failed to open file!");
+    throw runtime_error("failed to open file!");
   }
 
   size_t fileSize = (size_t)file.tellg();
-  std::vector<char> buffer(fileSize);
+  vector<char> buffer(fileSize);
 
   file.seekg(0);
   file.read(buffer.data(), fileSize);
@@ -1921,7 +1921,7 @@ std::vector<char> Pipeline::readFile(const std::string &filename) {
 }
 
 // Lesson 18
-VkShaderModule Pipeline::createShaderModule(const std::vector<char> &code) {
+VkShaderModule Pipeline::createShaderModule(const vector<char> &code) {
   VkShaderModuleCreateInfo createInfo{};
   createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
   createInfo.codeSize = code.size();
@@ -1933,7 +1933,7 @@ VkShaderModule Pipeline::createShaderModule(const std::vector<char> &code) {
       vkCreateShaderModule(BP->device, &createInfo, nullptr, &shaderModule);
   if (result != VK_SUCCESS) {
     PrintVkError(result);
-    throw std::runtime_error("failed to create shader module!");
+    throw runtime_error("failed to create shader module!");
   }
 
   return shaderModule;
@@ -1945,10 +1945,10 @@ void Pipeline::cleanup() {
 }
 
 void DescriptorSetLayout::init(BaseProject *bp,
-                               std::vector<DescriptorSetLayoutBinding> B) {
+                               vector<DescriptorSetLayoutBinding> B) {
   BP = bp;
 
-  std::vector<VkDescriptorSetLayoutBinding> bindings;
+  vector<VkDescriptorSetLayoutBinding> bindings;
   bindings.resize(B.size());
   for (int i = 0; i < B.size(); i++) {
     bindings[i].binding = B[i].binding;
@@ -1967,7 +1967,7 @@ void DescriptorSetLayout::init(BaseProject *bp,
                                                 nullptr, &descriptorSetLayout);
   if (result != VK_SUCCESS) {
     PrintVkError(result);
-    throw std::runtime_error("failed to create descriptor set layout!");
+    throw runtime_error("failed to create descriptor set layout!");
   }
 }
 
@@ -1976,7 +1976,7 @@ void DescriptorSetLayout::cleanup() {
 }
 
 void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
-                         std::vector<DescriptorSetElement> E) {
+                         vector<DescriptorSetElement> E) {
   BP = bp;
 
   // Create uniform buffer
@@ -2002,7 +2002,7 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
   }
 
   // Create Descriptor set
-  std::vector<VkDescriptorSetLayout> layouts(BP->swapChainImages.size(),
+  vector<VkDescriptorSetLayout> layouts(BP->swapChainImages.size(),
                                              DSL->descriptorSetLayout);
   VkDescriptorSetAllocateInfo allocInfo{};
   allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -2017,14 +2017,14 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
       vkAllocateDescriptorSets(BP->device, &allocInfo, descriptorSets.data());
   if (result != VK_SUCCESS) {
     PrintVkError(result);
-    throw std::runtime_error("failed to allocate descriptor sets!");
+    throw runtime_error("failed to allocate descriptor sets!");
   }
 
   for (size_t i = 0; i < BP->swapChainImages.size(); i++) {
-    std::vector<VkWriteDescriptorSet> descriptorWrites(E.size());
+    vector<VkWriteDescriptorSet> descriptorWrites(E.size());
     for (int j = 0; j < E.size(); j++) {
-      std::cout << "DescriptorSet [" << i << "] - type: " << E[j].type
-                << ", binding: " << E[j].binding << std::endl;
+      cout << "DescriptorSet [" << i << "] - type: " << E[j].type
+                << ", binding: " << E[j].binding << endl;
 
       if (E[j].type == UNIFORM) {
         VkDescriptorBufferInfo bufferInfo{};
@@ -2054,12 +2054,12 @@ void DescriptorSet::init(BaseProject *bp, DescriptorSetLayout *DSL,
         descriptorWrites[j].descriptorCount = 1;
         descriptorWrites[j].pImageInfo = &imageInfo;
 
-        std::cout << "DescriptorSet [" << i << "] is of type texture"
-                  << std::endl;
-        std::cout << "DescriptorSet [" << i
-                  << "] - imageView: " << imageInfo.imageView << std::endl;
-        std::cout << "DescriptorSet [" << i
-                  << "] - sampler: " << imageInfo.sampler << std::endl;
+        cout << "DescriptorSet [" << i << "] is of type texture"
+                  << endl;
+        cout << "DescriptorSet [" << i
+                  << "] - imageView: " << imageInfo.imageView << endl;
+        cout << "DescriptorSet [" << i
+                  << "] - sampler: " << imageInfo.sampler << endl;
       }
     }
     vkUpdateDescriptorSets(BP->device,
