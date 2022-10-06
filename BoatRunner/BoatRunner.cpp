@@ -22,7 +22,7 @@ using namespace std;
 #define rockSpeed 0.4f
 #else
 #define boatSpeed 0.5f
-#define rockSpeed 0.7f
+#define rockSpeed 0.8f
 #endif
 
 #define ESC "\033[;"
@@ -263,7 +263,7 @@ class Rock {
 		// Randomly generated position according to a normal distribution
 		// x in [horizon - rockGenDelta], horizon + rockGenDelta]
 		// z in [leftBound, rightBound]
-		pos = glm::vec3(glm::linearRand(horizon - rockGenDelta * 2.0f, horizon + rockGenDelta * 0.5f), 0, glm::linearRand(rightBound, leftBound));
+		pos = glm::vec3(glm::linearRand(horizon - rockGenDelta * 4.0f, (float) horizon), 0, glm::linearRand(rightBound, leftBound));
 		// same for rotation
 		rotationFactor = glm::linearRand(0.0f, 360.0f);
 	}
