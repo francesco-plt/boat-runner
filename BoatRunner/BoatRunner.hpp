@@ -25,15 +25,14 @@
 // New in Lesson 23 - to load images
 #define STB_IMAGE_IMPLEMENTATION
 
-#if defined(_WIN64)
-#include <stb_image.h>
-#include <tiny_obj_loader.h>
-#elif defined(_WIN32)
-#include <stb_image.h>
-#include <tiny_obj_loader.h>
-#else
-#include "headers/stb_image.h"
-#include "headers/tiny_obj_loader.h"
+#if defined(__APPLE__)
+  #include "headers/stb_image.h"
+  #include "headers/tiny_obj_loader.h"
+  #define IS_MACOS 1
+#else // Linux or Windows
+  #include <stb_image.h>
+  #include <tiny_obj_loader.h>
+  #define IS_MACOS 0
 #endif
 
 #define ESC "\033[;"
@@ -399,15 +398,10 @@ class BaseProject {
     const char **glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    // m1 fix
-    // vector<const char*> instanceExtensions =
-    // {
-    //     VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME
-    // };
-    // createInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-
-    createInfo.enabledExtensionCount = glfwExtensionCount;
-    createInfo.ppEnabledExtensionNames = glfwExtensions;
+    // MacOS fix
+    if(IS_MACOS) {
+        createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR; // MacOS fix
+    }
 
     createInfo.enabledLayerCount = 0;
 
@@ -434,7 +428,7 @@ class BaseProject {
 
     if (result != VK_SUCCESS) {
       PrintVkError(result);
-      throw runtime_error("failed to create instance!");
+      throw std::runtime_error("Failed to create instance!");
     }
   }
 
@@ -444,9 +438,15 @@ class BaseProject {
     const char **glfwExtensions;
     glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-    vector<const char *> extensions(glfwExtensions,
-                                         glfwExtensions + glfwExtensionCount);
+    std::vector<const char *> extensions(glfwExtensions,
+                                          glfwExtensions + glfwExtensionCount);
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+
+    // MacOS fix
+    if(IS_MACOS) {
+      extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+      extensions.emplace_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+    }
 
     return extensions;
   }
