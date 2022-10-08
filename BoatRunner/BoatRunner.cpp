@@ -1,21 +1,5 @@
 using namespace std;
-
 #include "BoatRunner.hpp"
-
-#include <fstream>
-#include <iostream>
-#include <cmath>
-#include <vector>
-#include <string>
-#include <unordered_map>
-#include <random>
-
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/gtx/string_cast.hpp>
-#include <glm/gtx/hash.hpp>
-#include <glm/gtc/random.hpp>
-#include <glm/gtx/euler_angles.hpp>
-#include <glm/gtc/epsilon.hpp>
 
 #if defined(_WIN64)
 #define boatSpeed 0.3f

@@ -4,20 +4,29 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 #include <optional>
+#include <random>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <vector>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <chrono>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/hash.hpp>
+#include <glm/gtc/random.hpp>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/epsilon.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
