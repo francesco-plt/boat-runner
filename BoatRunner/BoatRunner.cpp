@@ -89,6 +89,52 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 model;
 };
 
+struct SkyBoxUniformBufferObject {
+ alignas(16) glm::mat4 mvpMat;
+ alignas(16) glm::mat4 mMat;
+ alignas(16) glm::mat4 nMat;
+};
+
+class SkyBoxObj {
+
+	protected:
+	Pipeline P;
+	DescriptorSetLayout DSL;
+	DescriptorSetSkyBox DS;
+
+	public:
+		void init(BaseProject *br, SceneSkyBox SBScene) {
+			DSL.init(br, {
+				{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
+				{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+			});
+			P.init(br, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSL}, VK_COMPARE_OP_LESS_OR_EQUAL, "Skybox");
+			DS.init(br, &DSL, {
+				{0, UNIFORM, sizeof(SkyBoxUniformBufferObject), nullptr},
+				{1, TEXTURE, 0, &(SBScene.TD)}
+			});
+		}
+
+		// getters
+		Pipeline getPipeline() {
+			return P;
+		}
+		
+		DescriptorSetLayout getDescriptorSetLayout() {
+			return DSL;
+		}
+
+		DescriptorSetSkyBox getDescriptorSet() {
+			return DS;
+		}
+
+		void cleanup() {
+			DS.cleanup();
+			P.cleanup();
+			DSL.cleanup();
+		}
+};
+
 class Ocean {
 	protected:
 	Model model;
@@ -98,36 +144,36 @@ class Ocean {
 	float speedFactor;
 	
 	public:
-		void init(BaseProject *br, DescriptorSetLayout DSLobj) {
-			model.init(br, MODEL_PATH + "/Ocean.obj");
-			texture.init(br, TEXTURE_PATH + "/Ocean.png");
-			DS.init(br, &DSLobj, {
-				{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &texture}
-			});
+	void init(BaseProject *br, DescriptorSetLayout DSLobj) {
+		model.init(br, MODEL_PATH + "/Ocean.obj");
+		texture.init(br, TEXTURE_PATH + "/Ocean.png");
+		DS.init(br, &DSLobj, {
+			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
+			{1, TEXTURE, 0, &texture}
+		});
 
-			speedFactor = oceanSpeed;
-			pos = glm::vec3(0.0f, 0.0f, 0.0f);
-		}
+		speedFactor = oceanSpeed;
+		pos = glm::vec3(0.0f, 0.0f, 0.0f);
+	}
 
-		void cleanup() {
-			model.cleanup();
-			texture.cleanup();
-			DS.cleanup();
-		}
+	void cleanup() {
+		model.cleanup();
+		texture.cleanup();
+		DS.cleanup();
+	}
 
-		void moveForward(float accelerationFactor) {
-			pos.x += speedFactor;
-		}
+	void moveForward(float accelerationFactor) {
+		pos.x += speedFactor;
+	}
 
 
-		Model getModel() {
-			return model;
-		}
+	Model getModel() {
+		return model;
+	}
 
-		DescriptorSet getDS() {
-			return DS;
-		}
+	DescriptorSet getDS() {
+		return DS;
+	}
 };
 
 class Boat {
@@ -324,8 +370,9 @@ class BoatRunner : public BaseProject {
 
 	DescriptorSet DS_global;
 
-	Boat boat;
+	SkyBoxObj skybox;
 	Ocean ocean;
+	Boat boat;
 
 	int rockCount;
 	Model rockModels[2];
@@ -359,9 +406,9 @@ class BoatRunner : public BaseProject {
 		rockCount = floor(glm::linearRand(8.0f, 12.0f));
 
         // Descriptor pool sizes
-        uniformBlocksInPool = rockCount + 3;
-        texturesInPool = rockCount + 2;
-        setsInPool = rockCount + 3;
+        uniformBlocksInPool = rockCount + 4;	// ocean, skybox, boat, rocks
+        texturesInPool = rockCount + 3;
+        setsInPool = rockCount + 4;
     }
 	
 	// Here you load and setup all your Vulkan objects
@@ -384,11 +431,12 @@ class BoatRunner : public BaseProject {
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, VERTEX_SHADER, FRAGMENT_SHADER, {&DSLglobal, &DSLobj});
+		P1.init(this, VERTEX_SHADER, FRAGMENT_SHADER, {&DSLglobal, &DSLobj}, VK_COMPARE_OP_LESS_OR_EQUAL, "Global");
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
-		boat.init(this, DSLobj);
+		skybox.init(this, SBScene);
 		ocean.init(this, DSLobj);
+		boat.init(this, DSLobj);
 
 		// Rocks
 		rockModels[0].init(this, MODEL_PATH + ROCK_MODELS_PATH[0]);
@@ -432,8 +480,9 @@ class BoatRunner : public BaseProject {
 		// clean stdout
 		std::cout << "\n" << std::endl;
 
-		boat.cleanup();
+		skybox.cleanup();
 		ocean.cleanup();
+		boat.cleanup();
 
 		rockModels[0].cleanup();
 		rockModels[1].cleanup();
@@ -456,13 +505,43 @@ class BoatRunner : public BaseProject {
 	// You send to the GPU all the objects you want to draw,
 	// with their buffers and textures
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
-				
-		// Pipeline
+
+		// Skybox
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skybox.getPipeline().graphicsPipeline);
+		vkCmdBindDescriptorSets(commandBuffer,
+                        VK_PIPELINE_BIND_POINT_GRAPHICS,
+                        skybox.getPipeline().pipelineLayout, 0, 1, &skybox.getDescriptorSet().descriptorSets[currentImage],
+                        0, nullptr);
+
+		VkBuffer SBVertexBuffers[] = {SBScene.MD.vertexBuffer};
+        VkDeviceSize SBOffsets[] = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, SBVertexBuffers, SBOffsets);
+        vkCmdBindIndexBuffer(commandBuffer, SBScene.MD.indexBuffer, 0,
+                                VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(commandBuffer,
+                    static_cast<uint32_t>(SBScene.MD.indices.size()), 1, 0, 0, 0);
+
+		// Global Pipeline
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, P1.graphicsPipeline);
 		vkCmdBindDescriptorSets(commandBuffer,
 						VK_PIPELINE_BIND_POINT_GRAPHICS,
 						P1.pipelineLayout, 0, 1, &DS_global.descriptorSets[currentImage],
 						0, nullptr);
+
+		// Ocean
+		VkBuffer oceanVertexBuffers[] = {ocean.getModel().vertexBuffer};
+		VkDeviceSize oceanOffsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, oceanVertexBuffers, oceanOffsets);
+
+		vkCmdBindIndexBuffer(commandBuffer, ocean.getModel().indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		vkCmdBindDescriptorSets(commandBuffer,
+						VK_PIPELINE_BIND_POINT_GRAPHICS,
+						P1.pipelineLayout, 1, 1, &ocean.getDS().descriptorSets[currentImage],
+						0, nullptr);
+						
+		vkCmdDrawIndexed(commandBuffer,
+					static_cast<uint32_t>(ocean.getModel().indices.size()), 1, 0, 0, 0);
 
 		// Boat
 		VkBuffer boatVertexBuffers[] = {boat.getModel().vertexBuffer};
@@ -480,20 +559,6 @@ class BoatRunner : public BaseProject {
 		vkCmdDrawIndexed(commandBuffer,
 					static_cast<uint32_t>(boat.getModel().indices.size()), 1, 0, 0, 0);
 
-		// Ocean
-		VkBuffer oceanVertexBuffers[] = {ocean.getModel().vertexBuffer};
-		VkDeviceSize oceanOffsets[] = {0};
-		vkCmdBindVertexBuffers(commandBuffer, 0, 1, oceanVertexBuffers, oceanOffsets);
-
-		vkCmdBindIndexBuffer(commandBuffer, ocean.getModel().indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-		vkCmdBindDescriptorSets(commandBuffer,
-						VK_PIPELINE_BIND_POINT_GRAPHICS,
-						P1.pipelineLayout, 1, 1, &ocean.getDS().descriptorSets[currentImage],
-						0, nullptr);
-						
-		vkCmdDrawIndexed(commandBuffer,
-					static_cast<uint32_t>(ocean.getModel().indices.size()), 1, 0, 0, 0);
 
 		// Rocks
 
@@ -564,7 +629,8 @@ class BoatRunner : public BaseProject {
 			boatBoundCheck();
 			detectCollisions();
 		}
-					
+
+		SkyBoxUniformBufferObject subo{};					
 		globalUniformBufferObject gubo{};
 		UniformBufferObject ubo{};
 		
@@ -574,6 +640,19 @@ class BoatRunner : public BaseProject {
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, nearPlane, farPlane);
 		gubo.proj[1][1] *= -1;
 
+		// First we draw the skybox, then the camera
+
+		subo.mMat = I;
+        subo.nMat = I;
+        subo.mvpMat = gubo.proj * gubo.view;
+        
+        subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(3.0f));
+        
+        vkMapMemory(device, skybox.getDescriptorSet().uniformBuffersMemory[0][currentImage], 0, sizeof(subo), 0, &data);
+        memcpy(data, &subo, sizeof(subo));
+        vkUnmapMemory(device, skybox.getDescriptorSet().uniformBuffersMemory[0][currentImage]);
+
+		// Now we can proceed with the camera
 		vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
 		memcpy(data, &gubo, sizeof(gubo));
 		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
