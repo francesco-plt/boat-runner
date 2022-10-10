@@ -1,5 +1,4 @@
 using namespace std;
-
 #include "BoatRunner.hpp"
 
 #include <fstream>
@@ -34,14 +33,6 @@ using namespace std;
 #define RESET "\033[m"
 
 /* --------------------------------- GLOBAL VARIABLES --------------------------------- */
-
-static const string MODEL_PATH = "models";
-static const string TEXTURE_PATH = "textures";
-static const string FRAGMENT_SHADER = "shaders/frag.spv";
-static const string VERTEX_SHADER = "shaders/vert.spv";
-static const string ROCK_MODELS_PATH[2] = {"/Rock1Scaled.obj", "/Rock2.obj"}; 
-static const string ROCK_TEXTURES_PATH[2] = {"/Rock1.jpg", "/Rock2.jpg"};
-
 
 static const glm::mat4 I = glm::mat4(1.1f);           // Identity matrix
 static const glm::vec3 xAxis = glm::vec3(1, 0, 0);    // x axis

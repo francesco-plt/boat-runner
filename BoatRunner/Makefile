@@ -4,7 +4,7 @@ SHAD_DIR = ./shaders
 OUT_DIR = ./build
 CFLAGS = -std=c++17
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
-DBGFLAGS = -g -ggdb -glldb
+DBGFLAGS = -g -ggdb -glldb -ferror-limit=999
 
 $(PROJ_NAME): BoatRunner.cpp
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
@@ -12,6 +12,9 @@ $(PROJ_NAME): BoatRunner.cpp
 	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 build:
+	g++ $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
+
+debug:
 	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 shad:
