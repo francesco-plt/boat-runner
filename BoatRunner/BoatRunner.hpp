@@ -584,8 +584,14 @@ class BaseProject {
           }
       }
 
-      cout << FName << " (OBJ) -> V: " << MD.vertices.size()
-                << ", I: " << MD.indices.size() << "\n";
+      // For debugging
+      cout << "SkyBox Debug Info:" << endl;
+      cout << "Vertices: " << MD.vertices.size() << endl;
+      cout << "Indices: " << MD.indices.size() << endl;
+      cout << "Unique Vertices: " << uniqueVertices.size() << endl;
+
+      // cout << FName << " (OBJ) -> V: " << MD.vertices.size()
+      //           << ", I: " << MD.indices.size() << "\n";
   }
     
   void loadGLTFMesh(const char* FName, ModelData& MD) {
@@ -997,8 +1003,11 @@ class BaseProject {
                 void *pUserData) {
     // printing debug info in case of errors
     const auto msg = string(pCallbackData->pMessage);
-    if (msg.find("Error") != string::npos)
+    if (msg.find("Error") != string::npos) {
       cerr << ESC << RED << "Validation Layer Error: " << pCallbackData->pMessage << RESET << "\n" << endl;
+    } else {
+      cout << ESC << YELLOW << "Validation Layer: " << pCallbackData->pMessage << RESET << "\n" << endl;
+    }
     return VK_FALSE;
   }
 
@@ -2246,10 +2255,9 @@ void Pipeline::init(BaseProject *bp, const string& VertShader, const string& Fra
 	auto vertShaderCode = readFile(VertShader);
 	auto fragShaderCode = readFile(FragShader);
 	
-	cout << "Vertex shader len: " <<
-				vertShaderCode.size() << "\n";
-	cout << "Fragment shader len: " <<
-				fragShaderCode.size() << "\n";
+  cout << "Creating shader modules for pipeline " << identifier << "..." << endl;
+  printf("Vertex Shader Length: %d\n", vertShaderCode.size());
+  printf("Fragment Shader Length: %d\n", fragShaderCode.size());
 	
 	VkShaderModule vertShaderModule =
 			createShaderModule(vertShaderCode);
