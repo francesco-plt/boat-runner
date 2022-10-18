@@ -12,48 +12,50 @@
 #include <optional>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
+#include <glm/gtx/string_cast.hpp>
+#include <glm/gtc/random.hpp>
+#include <glm/gtx/euler_angles.hpp>
+#include <glm/gtc/epsilon.hpp>
 
 #if defined(__APPLE__)
+  #define TINYOBJLOADER_IMPLEMENTATION
+  #include "tiny_obj_loader.h"
   // New in Lesson 23 - to load images
   #define STB_IMAGE_IMPLEMENTATION
-  #include "headers/stb_image.h"
-
-  #define TINYOBJLOADER_IMPLEMENTATION
-  #include "headers/tiny_obj_loader.h"
-
+  #include "stb_image.h"
+  // To load skybox textures
   #define TINYGLTF_IMPLEMENTATION
   #define STB_IMAGE_WRITE_IMPLEMENTATION
   #define TINYGLTF_NO_INCLUDE_STB_IMAGE
-  #include "headers/tiny_gltf.h"
-
+  #include "tiny_gltf.h"
   #define IS_MACOS 1
 
 #else // Linux or Windows
   #define TINYOBJLOADER_IMPLEMENTATION
   #include <tiny_obj_loader.h>
-
+  // To load skybox textures
   #define TINYGLTF_IMPLEMENTATION
   #define STB_IMAGE_WRITE_IMPLEMENTATION
   #define TINYGLTF_NO_INCLUDE_STB_IMAGE
   #include <tiny_gltf.h>
-
   // New in Lesson 23 - to load images
-  #define STB_IMAGE_IMPLEMENTATION
+  // #define STB_IMAGE_IMPLEMENTATION
   #include <stb_image.h>
-
   #define IS_MACOS 0
 #endif
 
+// Terminal colors
 #define ESC "\033[;"
 #define RED "31m"
 #define GREEN "32m"
@@ -62,6 +64,7 @@
 #define PURPLE "35m"
 #define RESET "\033[m"
 
+// Path constants
 static const string MODEL_PATH = "models";
 static const string TEXTURE_PATH = "textures";
 static const string FRAGMENT_SHADER = "shaders/frag.spv";
@@ -69,7 +72,7 @@ static const string VERTEX_SHADER = "shaders/vert.spv";
 static const string ROCK_MODELS_PATH[2] = {"/Rock1Scaled.obj", "/Rock2.obj"}; 
 static const string ROCK_TEXTURES_PATH[2] = {"/Rock1.jpg", "/Rock2.jpg"};
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
+const int MAX_FRAMES_IN_FLIGHT = 2; // How many frames should be processed concurrently
 
 // Lesson 22.0
 const vector<const char *> validationLayers = {
@@ -585,13 +588,8 @@ class BaseProject {
       }
 
       // For debugging
-      cout << "SkyBox Debug Info:" << endl;
-      cout << "Vertices: " << MD.vertices.size() << endl;
-      cout << "Indices: " << MD.indices.size() << endl;
-      cout << "Unique Vertices: " << uniqueVertices.size() << endl;
-
-      // cout << FName << " (OBJ) -> V: " << MD.vertices.size()
-      //           << ", I: " << MD.indices.size() << "\n";
+      cout << FName << " (OBJ) -> V: " << MD.vertices.size()
+                << ", I: " << MD.indices.size() << "\n";
   }
     
   void loadGLTFMesh(const char* FName, ModelData& MD) {
@@ -766,7 +764,7 @@ class BaseProject {
               cout << (TEXTURE_PATH + FName[i]).c_str() << "\n";
               throw runtime_error("failed to load texture image!");
           }
-          cout << FName[i] << " -> size: " << texWidth
+          cout << TEXTURE_PATH + FName[i] << " -> size: " << texWidth
                     << "x" << texHeight << ", ch: " << texChannels <<"\n";
       }
 
