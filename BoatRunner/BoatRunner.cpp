@@ -54,11 +54,12 @@ static const float rock1Width = 2.5f;
 static const float rock2Width = 1.8f;
 static const float rock1Length = 2.5f;
 static const float rock2Length = 1.8f;
+static const glm::vec3 camDirDisplacement = glm::vec3(0.0f, 1.5f, 0.0f);
+static const glm::vec3 camPosDisplacement = glm::vec3(0.0f, 2.5f, -4.0f);
 
 
-static const glm::vec3 cameraPosition = glm::vec3(0.0f, 2.5f, -4.0f);
-static const glm::vec3 cameraDirection = glm::vec3(0.0f, 1.5f, 0.0f);
 static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+static const glm::vec3 initialCameraPosition = initialBoatPosition + camPosDisplacement;
 
 /* ------------------------------ CLASS/STRUCTURE DECLARATIONS ------------------------------ */
 
@@ -320,8 +321,6 @@ class BoatRunner : public BaseProject {
 	// Descriptors, models and textures (values assigned to the uniforms)
 
 	DescriptorSet DS_global;
-
-	// SkyBoxObj skybox;
 	SkyBoxData skybox;
 	Ocean ocean;
 	Boat boat;
@@ -330,9 +329,9 @@ class BoatRunner : public BaseProject {
 	Model rockModels[2];
 	Texture rockTextures[2];
 	vector<Rock> rocks;
-
-	// glm::vec3 boatPosition;
-	glm::vec3 oldBoatPos = initialBoatPosition;
+	
+	glm::vec3 cameraPosition;
+	// glm::vec3 oldBoatPos = initialBoatPosition;
 
 	// game logic related variables
 	float score;
@@ -602,11 +601,12 @@ class BoatRunner : public BaseProject {
 		
 		void* data;
 
-		gubo.view = glm::lookAt(cameraPosition, cameraDirection, yAxis);
+		// gubo.view = glm::lookAt(cameraPosition, glm::normalize(cameraPosition - boat.getPos()), yAxis);
+		gubo.view = glm::lookAt(cameraPosition, boat.getPos(), yAxis);
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, nearPlane, farPlane);
 		gubo.proj[1][1] *= -1;
 
-		// First we draw the skybox, then the camera
+		// First we draw the skybox, then the camera position
 
 		subo.mMat = I;
         subo.nMat = I;
@@ -618,7 +618,7 @@ class BoatRunner : public BaseProject {
         memcpy(data, &subo, sizeof(subo));
         vkUnmapMemory(device, skybox.DS.uniformBuffersMemory[0][currentImage]);
 
-		// Now we can proceed with the camera
+		// Now we can proceed with the camera position
 		vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
 		memcpy(data, &gubo, sizeof(gubo));
 		vkUnmapMemory(device, DS_global.uniformBuffersMemory[0][currentImage]);
@@ -627,7 +627,7 @@ class BoatRunner : public BaseProject {
 		// Boat
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, boatScalingFactor);	// scale the model
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera position
 		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), xAxis);	// boat oscillation
 		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), zAxis);	// ocean oscillation
 		ubo.model = glm::translate(ubo.model, boat.getPos());	// translating boat according to players input
@@ -640,7 +640,7 @@ class BoatRunner : public BaseProject {
 		// Ocean
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, oceanScalingFactor);	// scale the model
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera
+		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera position
 		ubo.model = glm::rotate(ubo.model, glm::radians(0.5f * sin(time)), zAxis);	// ocean oscillation
 		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.005f, 0));	// translating the ocean down so that it is always under the boat
 		ubo.model = glm::scale(ubo.model, glm::vec3(1, 0.5f, 1));	// making it shorter in height so that it doesn't cover the boat
@@ -704,6 +704,10 @@ class BoatRunner : public BaseProject {
 		if (glfwGetKey(window, GLFW_KEY_S)) {
 			boat.moveBackward();
 		}
+		
+		// updating camera position position and direction, it must point to the boat
+		cameraPosition = boat.getPos() + camPosDisplacement;
+		
 		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!isJumping) {
 				isJumping = true;
@@ -790,6 +794,7 @@ class BoatRunner : public BaseProject {
 		accFactor = 0.0f;
 		state = PLAY;
 
+		cameraPosition = initialCameraPosition;
 		boat.reset();
 		for(auto & r : rocks) {
 			r.reset();
