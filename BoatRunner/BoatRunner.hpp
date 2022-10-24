@@ -46,6 +46,8 @@
   #define IS_MACOS 1
 
 #else // Linux or Windows
+  #define STB_IMAGE_IMPLEMENTATION
+  #include "headers/stb_image.h"
   #define TINYOBJLOADER_IMPLEMENTATION
   #include <tiny_obj_loader.h>
   // To load skybox textures
@@ -55,7 +57,7 @@
   #include <tiny_gltf.h>
   // New in Lesson 23 - to load images
   // #define STB_IMAGE_IMPLEMENTATION
-  #include <stb_image.h>
+  
   #define IS_MACOS 0
 #endif
 
