@@ -24,6 +24,7 @@ static const glm::vec3 xAxis = glm::vec3(1, 0, 0);    // x axis
 static const glm::vec3 yAxis = glm::vec3(0, 1, 0);    // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
+static const glm::vec3 sbScalingFactor = glm::vec3(12.0f);
 static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
 static const glm::vec3 skyScalingFactor = glm::vec3(30.0f);
@@ -38,12 +39,11 @@ static const float nearPlane = 0.1f;
 static const float farPlane = 100.0f;
 
 
-static const int maxDepth = -10;
-static const int leftBound = 10;
-static const int rightBound = -10;
-static const int forwardBound = -4;
-static const int backwardBound = 2;
-static const int limitZ = 20;
+static const float maxDepth = -10.0f;
+static const float leftBound = 10.0f;
+static const float rightBound = -10.0f;
+static const float forwardBound = 4.0f;
+static const float backwardBound = -2.0f;
 static const int rockGenDelta = 50;
 static const float boatWidth = 2.5f;
 static const float boatLength = 4.5f;
@@ -53,10 +53,10 @@ static const float rock1Width = 2.5f;
 static const float rock2Width = 1.8f;
 static const float rock1Length = 2.5f;
 static const float rock2Length = 1.8f;
-static const glm::vec3 camDirDisplacement = glm::vec3(0.0f, 1.5f, 0.0f);
+
+
+static const glm::vec3 camDelta = glm::vec3(0.0f, 1.5f, 0.0f);
 static const glm::vec3 camPosDisplacement = glm::vec3(0.0f, 2.5f, -4.0f);
-
-
 static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 static const glm::vec3 initialCameraPosition = initialBoatPosition + camPosDisplacement;
 
@@ -147,6 +147,7 @@ class Boat {
 			{1, TEXTURE, 0, &texture}
 		});
 
+		// speedFactor = boatSpeed;
 		speedFactor = boatSpeed;
 		height = boatHeight;
 		width = boatWidth;
@@ -174,11 +175,11 @@ class Boat {
 	}
 
 	void moveForward() {
-		pos.z -= speedFactor * 0.33f;
+		pos.z += speedFactor * 0.33f;
 	}
 
 	void moveBackward() {
-		pos.z += speedFactor * 0.33f;
+		pos.z -= speedFactor * 0.33f;
 	}
 
 	void jump() {
@@ -584,14 +585,15 @@ class BoatRunner : public BaseProject {
 			accFactor += log10(log10(lastTime/8000 + 10));
 		}
 
-		updatePosition(accFactor, time);
+		updatePosition(accFactor, time)
+		;
 		if(state == PLAY) {
 			score += deltaT;
 			// Updating score in console while running
 			std::cout << ESC << PURPLE << "score: " << score << RESET << '\r' << std::flush;
 
 			// object position checking
-			boatBoundCheck();
+			checkBoatBoundaries();
 			detectCollisions();
 		}
 
@@ -601,19 +603,15 @@ class BoatRunner : public BaseProject {
 		
 		void* data;
 
-		gubo.view = glm::lookAt(cameraPosition, glm::vec3(0.0f, 1.5f, 0.0f), yAxis);
+		gubo.view = glm::lookAt(scaleVector(boat.getPos(), 0.1f) + camPosDisplacement, scaleVector(boat.getPos(), 0.1f) + camDelta, yAxis);
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, nearPlane, farPlane);
 		gubo.proj[1][1] *= -1;
 
 		// First we draw the skybox, then the camera position
-
 		subo.mMat = I;
         subo.nMat = I;
-        subo.mvpMat = gubo.proj * gubo.view;
-        
-        subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(15.0f));
-		// translate down
-		subo.mvpMat = glm::translate(subo.mvpMat, glm::vec3(0.0f, -0.25f, 0.0f));
+        subo.mvpMat = gubo.proj * glm::lookAt(scaleVector(initialBoatPosition, 0.1f) + camPosDisplacement, scaleVector(initialBoatPosition, 0.1f) + camDelta, yAxis);
+        subo.mvpMat = glm::scale(subo.mvpMat, sbScalingFactor);
         
         vkMapMemory(device, skybox.DS.uniformBuffersMemory[0][currentImage], 0, sizeof(subo), 0, &data);
         memcpy(data, &subo, sizeof(subo));
@@ -707,7 +705,6 @@ class BoatRunner : public BaseProject {
 		}
 		
 		// updating camera position position and direction, it must point to the boat
-		// cameraPosition = boat.getPos() + camPosDisplacement;
 		
 		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!isJumping) {
@@ -775,16 +772,18 @@ class BoatRunner : public BaseProject {
 	}
 
 	// checking that the boat does not go outside the field of view
-	void boatBoundCheck() {
+	void checkBoatBoundaries() {
 		if(boat.getPos().x > leftBound) {
 			boat.setPos(glm::vec3(leftBound, boat.getPos().y, boat.getPos().z));
-		} else if(boat.getPos().x < rightBound) {
+		}
+		if(boat.getPos().x < rightBound) {
 			boat.setPos(glm::vec3(rightBound, boat.getPos().y, boat.getPos().z));
 		}
-		if(boat.getPos().z < forwardBound) {
-			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, forwardBound));
-		} else if(boat.getPos().x > backwardBound) {
+		if(boat.getPos().z < backwardBound) {
 			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, backwardBound));
+		}
+		if(boat.getPos().z > forwardBound) {
+			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, forwardBound));
 		}
 	}
 
@@ -840,6 +839,10 @@ class BoatRunner : public BaseProject {
 		std::cout << "Press A to move left." << std::endl;
 		std::cout << "Press D to move right." << std::endl;
 		std::cout << "Press SPACE to jump." << std::endl;
+	}
+
+	glm::vec3 scaleVector(glm::vec3 v, float s) {
+		return glm::vec3(v.x * s, v.y * s, v.z * s);
 	}
 };
 
