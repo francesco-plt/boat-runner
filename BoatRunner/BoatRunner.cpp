@@ -6,7 +6,7 @@ using namespace std;
 #define rockSpeed 0.4f
 #else
 #define boatSpeed 0.5f
-#define rockSpeed 0.7f
+#define rockSpeed 0.9f
 #endif
 
 #define ESC "\033[;"
@@ -26,7 +26,7 @@ static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
 static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
-static const glm::vec3 skyScalingFactor = glm::vec3(40.0f);
+static const glm::vec3 skyScalingFactor = glm::vec3(30.0f);
 static const float minRockScalingFactor = 0.25f;
 static const float maxRockScalingFactor = 0.35f;
 static const float oceanSpeed = 0.25f;
@@ -38,10 +38,9 @@ static const float nearPlane = 0.1f;
 static const float farPlane = 100.0f;
 
 
-static const int horizon = -100.0f;
-static const int maxDepth = 10;
-static const int leftBound = 12;
-static const int rightBound = -12;
+static const int maxDepth = -10;
+static const int leftBound = 10;
+static const int rightBound = -10;
 static const int forwardBound = -4;
 static const int backwardBound = 2;
 static const int limitZ = 20;
@@ -115,7 +114,7 @@ class Ocean {
 	}
 
 	void moveForward(float accelerationFactor) {
-		pos.x += speedFactor;
+		pos.z -= speedFactor;
 	}
 
 
@@ -141,7 +140,7 @@ class Boat {
 
 	public:
 	void init(BaseProject *br, DescriptorSetLayout DSLobj) {
-		model.init(br, MODEL_PATH + "/shorterBoat.obj");
+		model.init(br, MODEL_PATH + "/Boat.obj");
 		texture.init(br, TEXTURE_PATH + "/Boat.bmp");
 		DS.init(br, &DSLobj, {
 			{0, UNIFORM, sizeof(UniformBufferObject), nullptr},
@@ -167,19 +166,19 @@ class Boat {
 
 	void moveLeft() {
 		// z because we need to take into account boat rotation
-		pos.z += speedFactor;
+		pos.x += speedFactor;
 	}
 
 	void moveRight() {
-		pos.z -= speedFactor;
+		pos.x -= speedFactor;
 	}
 
 	void moveForward() {
-		pos.x -= speedFactor * 0.33f;
+		pos.z -= speedFactor * 0.33f;
 	}
 
 	void moveBackward() {
-		pos.x += speedFactor * 0.33f;
+		pos.z += speedFactor * 0.33f;
 	}
 
 	void jump() {
@@ -250,9 +249,10 @@ class Rock {
 
 	void reset() {
 		// Randomly generated position according to a normal distribution
-		// x in [horizon - rockGenDelta], horizon + rockGenDelta]
+		// x in [farPlane - rockGenDelta], farPlane + rockGenDelta]
 		// z in [leftBound, rightBound]
-		pos = glm::vec3(glm::linearRand(horizon - rockGenDelta * 4.0f, (float) horizon), 0, glm::linearRand(rightBound, leftBound));
+		// pos = glm::vec3(glm::linearRand(farPlane - rockGenDelta * 4.0f, (float) farPlane), 0, glm::linearRand(rightBound, leftBound));
+		pos = glm::vec3(glm::linearRand(rightBound, leftBound), 0, glm::linearRand((float)farPlane, farPlane + rockGenDelta * 4.0f));
 		// same for rotation
 		rotationFactor = glm::linearRand(0.0f, 360.0f);
 	}
@@ -262,7 +262,7 @@ class Rock {
 	}
 
 	void moveForward(float accelerationFactor) {
-		pos.x += speedFactor + accelerationFactor;
+		pos.z -= speedFactor + accelerationFactor;
 	}
 
 	DescriptorSet getDS() {
@@ -354,7 +354,7 @@ class BoatRunner : public BaseProject {
 		*  according to a normal distribution, the number
 		*  of rocks determines the difficulty of the game
 		*/ 
-		rockCount = floor(glm::linearRand(8.0f, 12.0f));
+		rockCount = floor(glm::linearRand(10.0f, 14.0f));
 
         // Descriptor pool sizes
         uniformBlocksInPool = rockCount + 4;	// ocean, skybox, boat, rocks
@@ -601,8 +601,7 @@ class BoatRunner : public BaseProject {
 		
 		void* data;
 
-		// gubo.view = glm::lookAt(cameraPosition, glm::normalize(cameraPosition - boat.getPos()), yAxis);
-		gubo.view = glm::lookAt(cameraPosition, boat.getPos(), yAxis);
+		gubo.view = glm::lookAt(cameraPosition, glm::vec3(0.0f, 1.5f, 0.0f), yAxis);
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, nearPlane, farPlane);
 		gubo.proj[1][1] *= -1;
 
@@ -612,7 +611,9 @@ class BoatRunner : public BaseProject {
         subo.nMat = I;
         subo.mvpMat = gubo.proj * gubo.view;
         
-        subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(skyScalingFactor));
+        subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(15.0f));
+		// translate down
+		subo.mvpMat = glm::translate(subo.mvpMat, glm::vec3(0.0f, -0.25f, 0.0f));
         
         vkMapMemory(device, skybox.DS.uniformBuffersMemory[0][currentImage], 0, sizeof(subo), 0, &data);
         memcpy(data, &subo, sizeof(subo));
@@ -627,7 +628,7 @@ class BoatRunner : public BaseProject {
 		// Boat
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, boatScalingFactor);	// scale the model
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera position
+		// ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera position
 		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), xAxis);	// boat oscillation
 		ubo.model = glm::rotate(ubo.model, glm::radians(sin(2 * time)), zAxis);	// ocean oscillation
 		ubo.model = glm::translate(ubo.model, boat.getPos());	// translating boat according to players input
@@ -640,7 +641,7 @@ class BoatRunner : public BaseProject {
 		// Ocean
 		ubo.model = I;
 		ubo.model = glm::scale(ubo.model, oceanScalingFactor);	// scale the model
-		ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera position
+		// ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);	// align the model to the camera position
 		ubo.model = glm::rotate(ubo.model, glm::radians(0.5f * sin(time)), zAxis);	// ocean oscillation
 		ubo.model = glm::translate(ubo.model, glm::vec3(0, -0.005f, 0));	// translating the ocean down so that it is always under the boat
 		ubo.model = glm::scale(ubo.model, glm::vec3(1, 0.5f, 1));	// making it shorter in height so that it doesn't cover the boat
@@ -653,7 +654,7 @@ class BoatRunner : public BaseProject {
 		for(auto & r : rocks) {
 			ubo.model = I;
 			ubo.model = glm::scale(ubo.model, r.getScalingFactor());
-			ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), glm::vec3(0, 1, 0));
+			// ubo.model = glm::rotate(ubo.model, glm::radians(90.0f), yAxis);
 			ubo.model = glm::translate(ubo.model, r.getPos());
 			ubo.model = glm::rotate(ubo.model, r.getRot(), yAxis);
 
@@ -687,7 +688,7 @@ class BoatRunner : public BaseProject {
 			r.moveForward(accelerationFactor);
 			// When rocks get behind the boat they are moved
 			// again in the field of view far from the boat
-			if(r.getPos().x > maxDepth) {
+			if(r.getPos().z < maxDepth) {
 				r.reset();
 			}
 		}
@@ -706,7 +707,7 @@ class BoatRunner : public BaseProject {
 		}
 		
 		// updating camera position position and direction, it must point to the boat
-		cameraPosition = boat.getPos() + camPosDisplacement;
+		// cameraPosition = boat.getPos() + camPosDisplacement;
 		
 		if (glfwGetKey(window, GLFW_KEY_SPACE)) {
 			if(!isJumping) {
@@ -775,15 +776,15 @@ class BoatRunner : public BaseProject {
 
 	// checking that the boat does not go outside the field of view
 	void boatBoundCheck() {
-		if(boat.getPos().z > leftBound) {
-			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, leftBound));
-		} else if(boat.getPos().z < rightBound) {
-			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, rightBound));
+		if(boat.getPos().x > leftBound) {
+			boat.setPos(glm::vec3(leftBound, boat.getPos().y, boat.getPos().z));
+		} else if(boat.getPos().x < rightBound) {
+			boat.setPos(glm::vec3(rightBound, boat.getPos().y, boat.getPos().z));
 		}
-		if(boat.getPos().x < forwardBound) {
-			boat.setPos(glm::vec3(forwardBound, boat.getPos().y, boat.getPos().z));
+		if(boat.getPos().z < forwardBound) {
+			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, forwardBound));
 		} else if(boat.getPos().x > backwardBound) {
-			boat.setPos(glm::vec3(backwardBound, boat.getPos().y, boat.getPos().z));
+			boat.setPos(glm::vec3(boat.getPos().x, boat.getPos().y, backwardBound));
 		}
 	}
 
