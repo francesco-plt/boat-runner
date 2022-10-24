@@ -1,12 +1,12 @@
 using namespace std;
-#include "BoatRunnerVariant.hpp"
+#include "BoatRunner.hpp"
 
 #if defined(_WIN64)
 #define boatSpeed 0.3f
 #define rockSpeed 0.4f
 #else
 #define boatSpeed 0.5f
-#define rockSpeed 0.8f
+#define rockSpeed 0.7f
 #endif
 
 #define ESC "\033[;"
@@ -26,6 +26,7 @@ static const glm::vec3 zAxis = glm::vec3(0, 0, 1);    // z axis
 
 static const glm::vec3 boatScalingFactor = glm::vec3(0.3f);
 static const glm::vec3 oceanScalingFactor = glm::vec3(50.0f);
+static const glm::vec3 skyScalingFactor = glm::vec3(40.0f);
 static const float minRockScalingFactor = 0.25f;
 static const float maxRockScalingFactor = 0.35f;
 static const float oceanSpeed = 0.25f;
@@ -77,14 +78,6 @@ struct SkyBoxUniformBufferObject {
  alignas(16) glm::mat4 mvpMat;
  alignas(16) glm::mat4 mMat;
  alignas(16) glm::mat4 nMat;
-};
-
-struct SceneSkyBox {
-        // Model data
-        ModelData MD;
-        
-        // Texture data
-        TextureData TD;
 };
 
 struct SkyBoxData {
@@ -393,7 +386,6 @@ class BoatRunner : public BaseProject {
 		P1.init(this, VERTEX_SHADER, FRAGMENT_SHADER, {&DSLglobal, &DSLobj}, VK_COMPARE_OP_LESS_OR_EQUAL);
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
-		// skybox.init(this);
 		skybox.DSL.init(this, {
 			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
 			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
@@ -480,17 +472,19 @@ class BoatRunner : public BaseProject {
 
 		// Skybox
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skybox.P.graphicsPipeline);
+
+		VkBuffer SBVertexBuffers[] = {SkyBox.MD.vertexBuffer};
+        VkDeviceSize SBOffsets[] = {0};
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, SBVertexBuffers, SBOffsets);
+        vkCmdBindIndexBuffer(commandBuffer, SkyBox.MD.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+        
+
 		vkCmdBindDescriptorSets(commandBuffer,
                         VK_PIPELINE_BIND_POINT_GRAPHICS,
                         skybox.P.pipelineLayout, 0, 1, &skybox.DS.descriptorSets[currentImage],
                         0, nullptr);
 
-		VkBuffer SBVertexBuffers[] = {SkyBox.MD.vertexBuffer};
-        VkDeviceSize SBOffsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, SBVertexBuffers, SBOffsets);
-        vkCmdBindIndexBuffer(commandBuffer, SkyBox.MD.indexBuffer, 0,
-                                VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(commandBuffer,
+		vkCmdDrawIndexed(commandBuffer,
                     static_cast<uint32_t>(SkyBox.MD.indices.size()), 1, 0, 0, 0);
 
 		// Global Pipeline
@@ -608,7 +602,7 @@ class BoatRunner : public BaseProject {
 		
 		void* data;
 
-		gubo.view = glm::lookAt(cameraPosition, cameraDirection, zAxis);
+		gubo.view = glm::lookAt(cameraPosition, cameraDirection, yAxis);
 		gubo.proj = glm::perspective(FoV, swapChainExtent.width / (float) swapChainExtent.height, nearPlane, farPlane);
 		gubo.proj[1][1] *= -1;
 
@@ -618,7 +612,7 @@ class BoatRunner : public BaseProject {
         subo.nMat = I;
         subo.mvpMat = gubo.proj * gubo.view;
         
-        subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(3.0f));
+        subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(skyScalingFactor));
         
         vkMapMemory(device, skybox.DS.uniformBuffersMemory[0][currentImage], 0, sizeof(subo), 0, &data);
         memcpy(data, &subo, sizeof(subo));
