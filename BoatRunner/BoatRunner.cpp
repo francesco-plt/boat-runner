@@ -1,5 +1,5 @@
 using namespace std;
-#include "BoatRunner.hpp"
+#include "BoatRunnerVariant.hpp"
 
 #if defined(_WIN64)
 #define boatSpeed 0.3f
@@ -64,7 +64,6 @@ static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 enum gameState {PLAY, GAME_OVER};
 
 enum gameDifficulty {EASY, MEDIUM, HARD};
-
 struct globalUniformBufferObject {
 	alignas(16) glm::mat4 view;
 	alignas(16) glm::mat4 proj;
@@ -80,44 +79,18 @@ struct SkyBoxUniformBufferObject {
  alignas(16) glm::mat4 nMat;
 };
 
-class SkyBoxObj {
+struct SceneSkyBox {
+        // Model data
+        ModelData MD;
+        
+        // Texture data
+        TextureData TD;
+};
 
-	protected:
+struct SkyBoxData {
 	Pipeline P;
 	DescriptorSetLayout DSL;
 	DescriptorSetSkyBox DS;
-
-	public:
-		void init(BaseProject *br, SceneSkyBox SBScene) {
-			DSL.init(br, {
-				{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
-				{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
-			});
-			P.init(br, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&DSL}, VK_COMPARE_OP_LESS_OR_EQUAL, "Skybox");
-			DS.init(br, &DSL, {
-				{0, UNIFORM, sizeof(SkyBoxUniformBufferObject), nullptr},
-				{1, TEXTURE, 0, &(SBScene.TD)}
-			});
-		}
-
-		// getters
-		Pipeline getPipeline() {
-			return P;
-		}
-		
-		DescriptorSetLayout getDescriptorSetLayout() {
-			return DSL;
-		}
-
-		DescriptorSetSkyBox getDescriptorSet() {
-			return DS;
-		}
-
-		void cleanup() {
-			DS.cleanup();
-			P.cleanup();
-			DSL.cleanup();
-		}
 };
 
 class Ocean {
@@ -355,7 +328,8 @@ class BoatRunner : public BaseProject {
 
 	DescriptorSet DS_global;
 
-	SkyBoxObj skybox;
+	// SkyBoxObj skybox;
+	SkyBoxData skybox;
 	Ocean ocean;
 	Boat boat;
 
@@ -382,7 +356,7 @@ class BoatRunner : public BaseProject {
         windowWidth = 800;
         windowHeight = 600;
         windowTitle = "Boat Runner";
-        initialBackgroundColor = {0.0f, 0.5f, 0.8f, 1.0f};
+        //initialBackgroundColor = {0.0f, 0.5f, 0.8f, 1.0f};
 
 		/* Number of rocks is generated casually here
 		*  according to a normal distribution, the number
@@ -416,10 +390,20 @@ class BoatRunner : public BaseProject {
 		// Pipelines [Shader couples]
 		// The last array, is a vector of pointer to the layouts of the sets that will
 		// be used in this pipeline. The first element will be set 0, and so on..
-		P1.init(this, VERTEX_SHADER, FRAGMENT_SHADER, {&DSLglobal, &DSLobj}, VK_COMPARE_OP_LESS_OR_EQUAL, "Global");
+		P1.init(this, VERTEX_SHADER, FRAGMENT_SHADER, {&DSLglobal, &DSLobj}, VK_COMPARE_OP_LESS_OR_EQUAL);
 
 		// Models, textures and Descriptors (values assigned to the uniforms)
-		skybox.init(this, SBScene);
+		// skybox.init(this);
+		skybox.DSL.init(this, {
+			{0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT},
+			{1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT}
+		});
+		skybox.P.init(this, "shaders/SkyBoxVert.spv", "shaders/SkyBoxFrag.spv", {&skybox.DSL}, VK_COMPARE_OP_LESS_OR_EQUAL);
+		skybox.DS.init(this, &skybox.DSL, {
+			{0, UNIFORM, sizeof(SkyBoxUniformBufferObject), nullptr},
+			{1, TEXTURE, 0, &(SkyBox.TD)}
+		});
+		
 		ocean.init(this, DSLobj);
 		boat.init(this, DSLobj);
 
@@ -465,7 +449,10 @@ class BoatRunner : public BaseProject {
 		// clean stdout
 		std::cout << "\n" << std::endl;
 
-		skybox.cleanup();
+		skybox.DS.cleanup();
+		skybox.P.cleanup();
+		skybox.DSL.cleanup();
+		
 		ocean.cleanup();
 		boat.cleanup();
 
@@ -492,19 +479,19 @@ class BoatRunner : public BaseProject {
 	void populateCommandBuffer(VkCommandBuffer commandBuffer, int currentImage) {
 
 		// Skybox
-		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skybox.getPipeline().graphicsPipeline);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, skybox.P.graphicsPipeline);
 		vkCmdBindDescriptorSets(commandBuffer,
                         VK_PIPELINE_BIND_POINT_GRAPHICS,
-                        skybox.getPipeline().pipelineLayout, 0, 1, &skybox.getDescriptorSet().descriptorSets[currentImage],
+                        skybox.P.pipelineLayout, 0, 1, &skybox.DS.descriptorSets[currentImage],
                         0, nullptr);
 
-		VkBuffer SBVertexBuffers[] = {SBScene.MD.vertexBuffer};
+		VkBuffer SBVertexBuffers[] = {SkyBox.MD.vertexBuffer};
         VkDeviceSize SBOffsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, SBVertexBuffers, SBOffsets);
-        vkCmdBindIndexBuffer(commandBuffer, SBScene.MD.indexBuffer, 0,
+        vkCmdBindIndexBuffer(commandBuffer, SkyBox.MD.indexBuffer, 0,
                                 VK_INDEX_TYPE_UINT32);
         vkCmdDrawIndexed(commandBuffer,
-                    static_cast<uint32_t>(SBScene.MD.indices.size()), 1, 0, 0, 0);
+                    static_cast<uint32_t>(SkyBox.MD.indices.size()), 1, 0, 0, 0);
 
 		// Global Pipeline
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, P1.graphicsPipeline);
@@ -633,9 +620,9 @@ class BoatRunner : public BaseProject {
         
         subo.mvpMat = glm::scale(subo.mvpMat, glm::vec3(3.0f));
         
-        vkMapMemory(device, skybox.getDescriptorSet().uniformBuffersMemory[0][currentImage], 0, sizeof(subo), 0, &data);
+        vkMapMemory(device, skybox.DS.uniformBuffersMemory[0][currentImage], 0, sizeof(subo), 0, &data);
         memcpy(data, &subo, sizeof(subo));
-        vkUnmapMemory(device, skybox.getDescriptorSet().uniformBuffersMemory[0][currentImage]);
+        vkUnmapMemory(device, skybox.DS.uniformBuffersMemory[0][currentImage]);
 
 		// Now we can proceed with the camera
 		vkMapMemory(device, DS_global.uniformBuffersMemory[0][currentImage], 0, sizeof(gubo), 0, &data);
