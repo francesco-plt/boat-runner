@@ -4,19 +4,24 @@ SHAD_DIR = ./shaders
 OUT_DIR = ./build
 CFLAGS = -std=c++17
 LDFLAGS = -lglfw -lvulkan -ldl -lpthread
-DBGFLAGS = -g -ggdb -glldb
+DBGFLAGS = -g -v -ggdb -glldb -ferror-limit=999
+FLAGS = -w -fdiagnostics-color=always
 
 $(PROJ_NAME): BoatRunner.cpp
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
 	glslc -o $(SHAD_DIR)/vert.spv $(SHAD_DIR)/shader.vert
-	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
+	glslc -o $(SHAD_DIR)/SkyBoxFrag.spv $(SHAD_DIR)/SkyBoxShader.frag
+	glslc -o $(SHAD_DIR)/SkyBoxVert.spv $(SHAD_DIR)/SkyBoxShader.vert
+	g++ $(FLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
-build:
+debug:
 	g++ $(DBGFLAGS) $(CFLAGS) $(LDFLAGS) $(INC) -o $(OUT_DIR)/$(PROJ_NAME) BoatRunner.cpp
 
 shad:
 	glslc -o $(SHAD_DIR)/frag.spv $(SHAD_DIR)/shader.frag
 	glslc -o $(SHAD_DIR)/vert.spv $(SHAD_DIR)/shader.vert
+	glslc -o $(SHAD_DIR)/SkyBoxFrag.spv $(SHAD_DIR)/SkyBoxShader.frag
+	glslc -o $(SHAD_DIR)/SkyBoxVert.spv $(SHAD_DIR)/SkyBoxShader.vert
 
 clean:
 	rm -f build/$(PROJ_NAME) $(SHAD_DIR)/frag.spv $(SHAD_DIR)/vert.spv
