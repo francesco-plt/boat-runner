@@ -4,13 +4,11 @@ using namespace std;
 #if defined(_WIN64)
 #define boatSpeed 0.3f
 #define rockSpeed 0.4f
-#define oceanSpeed 0.25f
 #define maxAcceleration 3.0f
 #else
 #define boatSpeed 0.5f
 #define rockSpeed 0.7f
-#define oceanSpeed 0.1f
-#define maxAcceleration 3.0f
+#define maxAcceleration 5.0f
 #endif
 
 #define ESC "\033[;"
@@ -24,7 +22,8 @@ using namespace std;
 static const int minRockNum = 10;
 static const int maxRockNum = 15;
 
-static const glm::mat4 I = glm::mat4(1.1f);         // Identity matrix
+static const glm::mat4 I = glm::mat4(1.1f);  // Identity matrix
+static const glm::vec3 origin = glm::vec3(0, 0, 0);
 static const glm::vec3 xAxis = glm::vec3(1, 0, 0);  // x axis
 static const glm::vec3 yAxis = glm::vec3(0, 1, 0);  // y axis
 static const glm::vec3 zAxis = glm::vec3(0, 0, 1);  // z axis
@@ -40,6 +39,7 @@ static const float FoV = glm::radians(60.0f);
 static const float nearPlane = 0.1f;
 static const float farPlane = 100.0f;
 static const float maxDepth = -10.0f;
+static const float maxOceanDepth = -10000.0f;
 static const float leftBound = 10.0f;
 static const float rightBound = -10.0f;
 static const float forwardBound = 4.0f;
@@ -56,10 +56,9 @@ static const float rock2Length = 1.8f;
 
 static const glm::vec3 camDelta = glm::vec3(0.0f, 1.5f, 0.0f);
 static const glm::vec3 camPosDisplacement = glm::vec3(0.0f, 2.5f, -4.0f);
-static const glm::vec3 initialBoatPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+static const glm::vec3 initialBoatPosition = origin;
+static const glm::vec3 initialOceanPosition = origin;
 static const glm::vec3 initialCameraPosition = initialBoatPosition + camPosDisplacement;
-
-/* ------------------------------ CLASS/STRUCTURE DECLARATIONS ------------------------------ */
 
 enum gameState { PLAY,
                  GAME_OVER };
@@ -94,17 +93,12 @@ class Ocean {
     Model model;
     Texture texture;
     DescriptorSet DS;
-    glm::vec3 pos;
-    float speedFactor;
 
    public:
     void init(BaseProject *br, DescriptorSetLayout DSLobj) {
         model.init(br, MODEL_PATH + "/Ocean.obj");
         texture.init(br, TEXTURE_PATH + "/Ocean.png");
         DS.init(br, &DSLobj, {{0, UNIFORM, sizeof(UniformBufferObject), nullptr}, {1, TEXTURE, 0, &texture}});
-
-        speedFactor = oceanSpeed;
-        pos = glm::vec3(0.0f, 0.0f, 0.0f);
     }
 
     void cleanup() {
@@ -113,16 +107,16 @@ class Ocean {
         DS.cleanup();
     }
 
-    void moveForward(float accelerationFactor) {
-        pos.z -= speedFactor;
-    }
-
     Model getModel() {
         return model;
     }
 
     DescriptorSet getDS() {
         return DS;
+    }
+
+    glm::vec3 getPos() {
+        return pos;
     }
 };
 
@@ -651,10 +645,6 @@ class BoatRunner : public BaseProject {
             return;
         }
 
-        // To give the illusion of the boat moving forward,
-        // the ocean is moved backwards and the rocks are moved forward
-        ocean.moveForward(accelerationFactor);
-
         for (auto &r : rocks) {
             // Speed increases with time (up to a certain limit given by maxAcceleration)
             r.moveForward(accelerationFactor);
@@ -702,11 +692,11 @@ class BoatRunner : public BaseProject {
     // if yes, game is stopped and every object goes back
     // to its original position thanks to the initGame function
     void detectCollisions() {
-        // debugging purposes
-        // if(!glm::all(glm::equal(boat.getPos(), oldBoatPos))) {
-        // 	boat.printPos();
-        // 	oldBoatPos = boat.getPos();
-        // }
+        /* debugging purposes
+         * if(!glm::all(glm::equal(boat.getPos(), oldBoatPos))) {
+         * 	boat.printPos();
+         * 	oldBoatPos = boat.getPos();
+         * } */
 
         for (auto &r : rocks) {
             /* debugging purposes
