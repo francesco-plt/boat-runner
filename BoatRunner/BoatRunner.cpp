@@ -114,10 +114,6 @@ class Ocean {
     DescriptorSet getDS() {
         return DS;
     }
-
-    glm::vec3 getPos() {
-        return pos;
-    }
 };
 
 class Boat {
