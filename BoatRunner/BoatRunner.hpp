@@ -47,14 +47,14 @@
 #else  // Linux or Windows
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 // To load skybox textures
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define TINYGLTF_NO_INCLUDE_STB_IMAGE
 #include <tiny_gltf.h>
 // New in Lesson 23 - to load images
-// #define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
 #define IS_MACOS 0
 #endif
 
@@ -140,21 +140,21 @@ struct SkyBoxModel {
 
 const SkyBoxModel SkyBoxToLoad = {"SkyBoxCube.obj", OBJ, {"sky/posx.png", "sky/negx.png", "sky/posy.png", "sky/negy.png", "sky/posz.png", "sky/negz.png"}};
 
-struct ModelData {
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
+struct SingleText {
+	int usedLines;
+	const char *l[4];
+	int start;
+	int len;
 };
 
-struct TextureData {
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
-    VkImageView textureImageView;
-    VkSampler textureSampler;
-    uint32_t mipLevels;
+std::vector<SingleText> SceneText = {
+	{1, {"MT1 - Translate of +2 on the x axis, and -1 on the y axis", "", "", ""}, 0, 0},
+	{1, {"MT2 - Rotate of 45 degrees on the x axis", "", "", ""}, 0, 0},
+	{1, {"MT3 - Make the object 2 times smaller", "", "", ""}, 0, 0},
+	{2, {"MT4 - Make the object 2 times longer on the z axis,", "and half on the other axis", "", ""}, 0, 0},
+	{1, {"MT5 - Mirror over the z axis", "", "", ""}, 0, 0},
+	{1, {"MT6 - Flatten over the z axis", "", "", ""}, 0, 0},
+	{2, {"MT7 - Make a shear along the Y axis,", "with a factor of 1 along the x axis", "", ""}, 0, 0}
 };
 
 namespace std {
@@ -168,6 +168,202 @@ struct hash<Vertex> {
     }
 };
 }  // namespace std
+
+// Added
+struct VertexDescriptor {
+	bool hasPos;
+	bool hasNormal;
+	bool hasTexCoord;
+	bool hasColor;
+	bool hasTangent;
+	
+	int deltaPos;
+	int deltaNormal;
+	int deltaTexCoord;
+	int deltaColor;
+	int deltaTangent;
+	
+	int locPos;
+	int locNormal;
+	int locTexCoord;
+	int locColor;
+	int locTangent;
+	
+	int size;
+	int loc;
+	
+	VertexDescriptor(bool hPos, bool hNormal, bool hTexCoord, bool hColor, bool hTangent) {
+		size = 0;
+		loc = 0;
+		
+		hasPos = hPos;
+		hasNormal = hNormal;
+		hasTexCoord = hTexCoord;
+		hasColor = hColor;
+		hasTangent = hTangent;
+		
+		if(hasPos) {deltaPos = size; size += 3; locPos = loc; loc++;} else {deltaPos = -1; locPos = -1;}
+		if(hasNormal) {deltaNormal = size; size += 3; locNormal = loc; loc++;} else {deltaNormal = -1; locNormal = -1;}
+		if(hasTexCoord) {deltaTexCoord = size; size += 2; locTexCoord = loc; loc++;} else {deltaTexCoord = -1; locTexCoord = -1;}
+		if(hasColor) {deltaColor = size; size += 4; locColor = loc; loc++;} else {deltaColor = -1; locColor = -1;}
+		if(hasTangent) {deltaTangent = size; size += 4; locTangent = loc; loc++;} else {deltaTangent = -1; locTangent = -1;}
+	}
+
+	
+	VkVertexInputBindingDescription getBindingDescription() {
+		VkVertexInputBindingDescription bindingDescription{};
+		bindingDescription.binding = 0;
+		bindingDescription.stride = size * sizeof(float);
+		bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		
+		return bindingDescription;
+	}
+	
+	std::vector<VkVertexInputAttributeDescription>
+						getAttributeDescriptions(int binding = 0) {
+		std::vector<VkVertexInputAttributeDescription>
+						attributeDescriptions{};
+		attributeDescriptions.resize(loc);
+		if(hasPos) {
+			attributeDescriptions[locPos].binding = binding;
+			attributeDescriptions[locPos].location = locPos;
+			attributeDescriptions[locPos].format = VK_FORMAT_R32G32B32_SFLOAT;
+			attributeDescriptions[locPos].offset = deltaPos * sizeof(float);
+		}
+						
+		if(hasNormal) {
+			attributeDescriptions[locNormal].binding = binding;
+			attributeDescriptions[locNormal].location = locNormal;
+			attributeDescriptions[locNormal].format = VK_FORMAT_R32G32B32_SFLOAT;
+			attributeDescriptions[locNormal].offset = deltaNormal * sizeof(float);
+		}
+		
+		if(hasTexCoord) {
+			attributeDescriptions[locTexCoord].binding = binding;
+			attributeDescriptions[locTexCoord].location = locTexCoord;
+			attributeDescriptions[locTexCoord].format = VK_FORMAT_R32G32_SFLOAT;
+			attributeDescriptions[locTexCoord].offset = deltaTexCoord * sizeof(float);
+		}
+								
+		if(hasColor) {
+			attributeDescriptions[locColor].binding = binding;
+			attributeDescriptions[locColor].location = locColor;
+			attributeDescriptions[locColor].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+			attributeDescriptions[locColor].offset = deltaColor * sizeof(float);
+		}
+						
+		if(hasTangent) {
+			attributeDescriptions[locTangent].binding = binding;
+			attributeDescriptions[locTangent].location = locTangent;
+			attributeDescriptions[locTangent].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+			attributeDescriptions[locTangent].offset = deltaTangent * sizeof(float);
+		}
+					
+		return attributeDescriptions;
+	}
+
+	glm::vec3 getPos(float *data, int i) {
+		if(hasPos) {
+			return glm::vec3(data[i * size + deltaPos], data[i * size + deltaPos + 1], data[i * size + deltaPos + 2]);
+		} else {
+			return glm::vec3(0.0f);
+			std::cerr << "Vertex has no position \n";
+		}
+	}
+	
+	void setPos(float *data, int i, glm::vec3 pos) {
+		if(hasPos) {
+			data[i * size + deltaPos] = pos.x;
+			data[i * size + deltaPos + 1] = pos.y;
+			data[i * size + deltaPos + 2] = pos.z;
+		} else {
+			std::cerr << "Vertex has no position \n";
+		}
+	}
+
+	glm::vec3 getNormal(float *data, int i) {
+		if(hasPos) {
+			return glm::vec3(data[i * size + deltaNormal], data[i * size + deltaNormal + 1], data[i * size + deltaNormal + 2]);
+		} else {
+			return glm::vec3(0.0f);
+			std::cerr << "Vertex has no normal \n";
+		}
+	}
+	
+	void setNormal(float *data, int i, glm::vec3 norm) {
+		if(hasNormal) {
+			data[i * size + deltaNormal] = norm.x;
+			data[i * size + deltaNormal + 1] = norm.y;
+			data[i * size + deltaNormal + 2] = norm.z;
+		} else {
+			std::cerr << "Vertex has no normal \n";
+		}
+	}
+
+	glm::vec2 getTexCoord(float *data, int i) {
+		if(hasPos) {
+			return glm::vec2(data[i * size + deltaTexCoord], data[i * size + deltaTexCoord + 1]);
+		} else {
+			return glm::vec2(0.0f);
+			std::cerr << "Vertex has no UV \n";
+		}
+	}
+	
+	void setTexCoord(float *data, int i, glm::vec3 uv) {
+		if(hasNormal) {
+			data[i * size + deltaTexCoord] = uv.x;
+			data[i * size + deltaTexCoord + 1] = uv.y;
+		} else {
+			std::cerr << "Vertex has no UV \n";
+		}
+	}
+};
+
+// Added, cambiato vertices in float
+struct ModelData {
+	VertexDescriptor *vertDesc;
+	std::vector<float> vertices;
+	std::vector<uint32_t> indices;
+	VkBuffer vertexBuffer;
+	VkDeviceMemory vertexBufferMemory;
+	VkBuffer indexBuffer;
+	VkDeviceMemory indexBufferMemory;	
+};
+
+struct TextureData {
+    VkImage textureImage;
+    VkDeviceMemory textureImageMemory;
+    VkImageView textureImageView;
+    VkSampler textureSampler;
+    uint32_t mipLevels;
+};
+
+struct CharData {
+	int x;
+	int y;
+	int width;
+	int height;
+	int xoffset;
+	int yoffset;
+	int xadvance;
+};
+
+struct FontDef {
+	int lineHeight;
+	std::vector<CharData> P;
+};
+
+std::vector<FontDef> Fonts = {{73,{{0,0,0,0,0,0,21},{116,331,18,61,4,4,21},{379,444,29,30,-1,4,26},{135,331,51,61,-4,4,41},{206,0,46,74,-2,0,41},{320,143,70,62,-2,5,65},{0,143,54,63,-1,4,49},{409,444,18,30,1,4,14},{25,0,27,77,1,3,24},{53,0,28,77,-2,3,24},{345,444,33,30,-1,4,29},{156,444,48,46,-1,19,43},{428,444,18,28,2,48,21},{26,492,29,17,-1,32,24},{56,492,18,17,2,48,21},{478,0,33,61,-4,4,21},{55,143,46,62,-2,5,41},{225,331,29,60,3,5,41},{255,331,46,60,-2,5,41},{102,143,46,62,-2,5,41},{302,331,47,60,-2,5,41},{453,143,46,61,-2,6,41},{149,143,46,62,-2,5,41},{350,331,47,59,-2,6,41},{196,143,46,62,-2,5,41},{243,143,46,62,-2,5,41},{137,444,18,47,4,18,21},{427,331,18,58,4,18,21},{344,393,52,48,-3,18,43},{247,444,48,31,-1,27,43},{397,393,52,48,-3,18,43},{391,143,43,62,1,3,41},
+{116,78,68,64,4,3,74},{124,207,57,61,-3,4,49},{182,207,51,61,1,4,49},{360,0,57,64,-1,3,52},{234,207,53,61,2,4,52},{288,207,49,61,2,4,49},{338,207,47,61,2,4,44},{418,0,59,64,-1,3,57},{386,207,53,61,1,4,52},{440,207,18,61,3,4,21},{411,78,41,63,-3,4,36},{0,269,54,61,1,4,49},{55,269,45,61,1,4,41},{101,269,61,61,1,4,60},{163,269,52,61,1,4,52},{0,78,61,64,-1,3,57},{216,269,50,61,2,4,49},{253,0,61,67,-1,3,57},{267,269,54,61,2,4,52},{62,78,53,64,-1,3,49},{459,207,53,61,-3,4,44},{453,78,52,63,2,4,52},{322,269,56,61,-2,4,49},{379,269,77,61,-3,4,68},{0,331,57,61,-3,4,49},{58,331,57,61,-3,4,49},{457,269,52,61,-3,4,44},{154,0,25,76,0,4,21},{187,331,37,61,-7,4,21},{180,0,25,76,-3,4,21},{205,444,41,40,0,4,34},{75,492,51,13,-4,61,41},
+{0,492,25,20,-3,3,24},{0,393,46,50,-1,17,41},{185,78,44,63,0,4,41},{184,393,43,49,-2,17,36},{230,78,44,63,-2,4,41},{47,393,46,50,-2,17,41},{290,143,29,62,-3,3,21},{315,0,44,64,-2,17,41},{0,207,42,61,0,4,41},{43,207,18,61,0,4,16},{0,0,24,77,-6,4,16},{62,207,43,61,0,4,36},{106,207,17,61,1,4,16},{446,331,62,48,0,17,60},{228,393,42,48,0,17,41},{94,393,46,50,-2,17,41},{275,78,44,63,0,17,41},{320,78,44,63,-2,17,41},{271,393,29,48,1,17,24},{141,393,42,50,-2,17,36},{398,331,28,59,-3,7,21},{301,393,42,48,0,18,41},{0,444,46,47,-4,18,36},{450,393,62,47,-4,18,52},{47,444,46,47,-4,18,36},{365,78,45,63,-3,18,36},{94,444,42,47,-2,18,36},{82,0,35,77,-6,3,25},{435,143,17,62,1,3,19},{118,0,35,77,-3,3,25},{447,444,53,24,-4,30,43},{296,444,48,31,-1,27,43}}},
+{30,{{512,0,0,0,0,0,9},{740,149,11,28,0,0,9},{723,80,16,15,-2,0,11},{600,58,25,28,-3,0,17},{631,103,22,34,-2,-2,17},{512,59,32,28,-2,1,27},{542,147,26,29,-2,0,21},{740,235,11,15,-1,0,6},{723,96,15,34,-1,0,10},{723,131,15,34,-2,0,10},{599,239,17,16,-2,0,12},{600,125,24,22,-2,6,18},{740,35,12,15,-1,18,9},{700,242,16,9,-2,12,10},{740,51,12,10,-1,18,9},{700,213,17,28,-3,0,9},{655,0,22,28,-2,1,17},{655,228,16,27,0,1,17},{631,228,22,27,-2,1,17},{655,29,22,28,-2,1,17},{631,0,23,27,-2,1,17},{655,58,22,28,-2,1,17},{655,87,22,28,-2,1,17},{631,28,23,27,-2,1,17},{655,116,22,28,-2,1,17},{655,145,22,28,-2,1,17},{754,0,11,22,0,6,9},{740,207,11,27,0,6,9},{573,116,26,23,-3,6,18},{600,148,24,15,-2,10,18},{573,140,26,23,-3,6,18},{678,195,21,28,-1,0,17},
+{512,29,32,29,0,0,31},{545,59,27,28,-3,0,21},{573,194,25,28,-1,0,21},{545,29,27,29,-2,0,22},{542,177,26,28,-1,0,22},{600,96,24,28,-1,0,21},{599,210,23,28,-1,0,19},{512,224,28,29,-2,0,24},{573,223,25,28,-1,0,22},{740,120,11,28,0,0,9},{678,107,21,29,-3,0,15},{542,206,26,28,-1,0,21},{655,174,22,28,-1,0,17},{512,149,29,28,-1,0,25},{605,0,25,28,-1,0,22},{512,119,29,29,-2,0,24},{600,29,25,28,-1,0,21},{512,88,29,30,-2,0,24},{578,0,26,28,-1,0,22},{542,117,26,29,-2,0,21},{573,29,26,28,-3,0,19},{573,164,25,29,-1,0,22},{573,58,26,28,-2,0,21},{512,0,36,28,-3,0,29},{542,88,27,28,-3,0,21},{549,0,28,28,-3,0,21},{573,87,26,28,-3,0,19},{740,0,13,34,-1,0,9},{700,184,18,28,-4,0,9},{723,202,14,34,-3,0,9},{700,94,20,19,-1,0,15},{600,87,25,8,-3,24,17},
+{723,237,14,11,-3,0,10},{631,56,23,23,-2,6,17},{678,47,21,29,-1,0,17},{678,224,21,24,-2,5,15},{631,138,22,29,-2,0,17},{678,0,22,23,-2,6,17},{723,0,16,28,-3,0,9},{631,168,22,29,-2,6,17},{678,137,21,28,-1,0,17},{740,62,11,28,-1,0,7},{723,166,14,35,-4,0,7},{678,166,21,28,-1,0,15},{740,91,11,28,-1,0,7},{512,178,29,22,-1,6,25},{701,24,21,22,-1,6,17},{655,203,22,24,-2,5,17},{678,77,21,29,-1,6,17},{631,198,22,29,-2,6,17},{723,57,16,22,-1,6,10},{701,0,21,23,-2,6,15},{723,29,16,27,-3,2,9},{700,70,20,23,-1,6,17},{631,80,23,22,-3,6,15},{512,201,29,22,-3,6,22},{678,24,22,22,-3,6,15},{599,180,23,29,-3,6,15},{700,47,21,22,-2,6,15},{700,149,18,34,-4,0,11},{740,178,11,28,-1,0,8},{700,114,19,34,-3,0,11},{542,235,26,13,-3,11,18},{599,164,24,15,-2,10,18}}},
+{16,{{768,0,0,0,0,0,5},{914,51,8,16,-1,-1,5},{902,17,11,9,-3,-1,6},{825,127,15,16,-3,-1,9},{789,135,14,19,-3,-2,9},{768,17,20,17,-3,-1,15},{768,121,17,17,-3,-1,11},{914,126,8,9,-2,-1,4},{902,27,10,20,-2,-1,6},{902,48,10,20,-3,-1,6},{825,144,12,10,-3,-1,7},{873,87,14,13,-2,2,10},{914,116,8,9,-2,9,5},{842,147,11,7,-3,5,6},{914,136,8,6,-2,9,5},{902,0,11,16,-3,-1,5},{842,21,14,17,-3,-1,9},{858,138,11,16,-2,-1,9},{858,72,14,16,-3,-1,9},{842,39,14,17,-3,-1,9},{825,42,15,16,-3,-1,9},{858,89,14,16,-3,0,9},{842,57,14,17,-3,-1,9},{768,139,15,15,-3,0,9},{842,75,14,17,-3,-1,9},{842,93,14,17,-3,-1,9},{914,102,8,13,-1,2,5},{914,68,8,16,-1,2,5},{807,119,16,14,-3,2,10},{873,101,14,10,-2,4,10},{825,0,16,14,-3,2,10},{888,34,13,16,-2,-1,9},
+{768,35,19,17,-1,-1,17},{790,0,17,16,-3,-1,11},{825,59,15,16,-2,-1,11},{768,103,17,17,-3,-1,12},{808,0,16,16,-2,-1,12},{825,76,15,16,-2,-1,11},{825,93,15,16,-2,-1,10},{789,99,16,17,-2,-1,13},{807,17,16,16,-2,-1,12},{914,34,8,16,-2,-1,5},{873,123,13,17,-3,-1,8},{807,34,16,16,-2,-1,11},{858,106,14,16,-2,-1,9},{789,17,17,16,-2,-1,14},{807,51,16,16,-2,-1,12},{768,53,18,17,-3,-1,13},{825,110,15,16,-2,-1,11},{768,71,18,17,-3,-1,13},{807,68,16,16,-2,-1,12},{825,24,15,17,-2,-1,11},{807,85,16,16,-3,-1,10},{789,117,16,17,-2,-1,12},{789,34,17,16,-3,-1,11},{768,0,21,16,-3,-1,16},{789,51,17,16,-3,-1,11},{789,68,17,16,-3,-1,11},{807,102,16,16,-3,-1,10},{902,129,9,20,-2,-1,5},{888,121,12,16,-4,-1,5},{902,69,10,20,-3,-1,5},{888,66,13,12,-2,-1,8},{842,15,15,5,-3,12,9},
+{902,121,10,7,-3,-1,6},{842,0,15,14,-3,2,9},{842,111,14,17,-2,-1,9},{858,123,14,14,-3,2,8},{842,129,14,17,-3,-1,9},{873,0,14,14,-3,2,9},{888,138,10,16,-3,-1,5},{858,0,14,17,-3,2,9},{888,0,13,16,-2,-1,9},{914,0,8,16,-2,-1,4},{807,134,10,20,-4,-1,4},{888,17,13,16,-2,-1,8},{914,17,8,16,-2,-1,4},{768,89,18,13,-2,2,14},{873,141,13,13,-2,2,9},{873,15,14,14,-3,2,9},{858,18,14,17,-2,2,9},{858,36,14,17,-3,2,9},{902,107,10,13,-2,2,6},{873,30,14,14,-3,2,8},{902,90,10,16,-3,0,5},{888,51,13,14,-2,2,9},{873,45,14,13,-3,2,8},{789,85,17,13,-3,2,12},{873,59,14,13,-3,2,8},{858,54,14,17,-3,2,8},{873,73,14,13,-3,2,8},{888,79,12,20,-4,-1,6},{914,85,8,16,-2,-1,5},{888,100,12,20,-3,-1,6},{825,15,16,8,-3,5,10},{873,112,14,10,-2,4,10}}}};
+const float VisV[] = {1.0,0.0,0.0,2.0,0.0,1.0,0.0,-1.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,0.707,-0.707,0.0,0.0,0.707,0.707,0.0,0.0,0.0,0.0,1.0,0.5,0.0,0.0,0.0,0.0,0.5,0.0,0.0,0.0,0.0,0.5,0.0,0.0,0.0,0.0,1.0,0.5,0.0,0.0,0.0,0.0,0.5,0.0,0.0,0.0,0.0,2.0,0.0,0.0,0.0,0.0,1.0,-1.0,0.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0,1.0,1.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0};
+
 
 // Lesson 13
 struct QueueFamilyIndices {
@@ -385,6 +581,11 @@ class BaseProject {
     // FIXME PROTECTED
     std::vector<VkImage> swapChainImages;
     VkDescriptorPool descriptorPool;
+
+    // Added
+    VertexDescriptor phongAndSkyBoxVertices = VertexDescriptor(true, true, true, false, false);
+    VertexDescriptor textVertices = VertexDescriptor(true, false, true, false, false);
+
     VkDevice device;
     // Lesson 21
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
@@ -467,6 +668,8 @@ class BaseProject {
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
 
+    VkSampleCountFlagBits msaaSamples = VK_SAMPLE_COUNT_1_BIT;
+
     // L22.2 --- Frame buffers
     std::vector<VkFramebuffer> swapChainFramebuffers;
     size_t currentFrame = 0;
@@ -524,12 +727,31 @@ class BaseProject {
 
     SceneSkyBox SkyBox;
 
+    struct SceneModel {
+        // Model data
+        ModelData MD;
+        
+        // Texture data
+        TextureData TD;
+    };
+
+    // Added
+    //  Text pipeline
+ 	VkDescriptorSetLayout TextDescriptorSetLayout; 
+  	VkPipelineLayout TextPipelineLayout;
+	VkPipeline TextPipeline;	
+	std::vector<VkBuffer> TextUniformBuffers;
+	std::vector<VkDeviceMemory> TextUniformBuffersMemory;
+	// to access uniforms in the pipeline
+	std::vector<VkDescriptorSet> TextDescriptorSets;
+	SceneModel SText;
+
     const std::string MODEL_PATH = "models/";
     const std::string TEXTURE_PATH = "textures/";
     const std::string SHADER_PATH = "shaders/";
 
     void loadSkyBox() {
-        loadMesh(SkyBoxToLoad.ObjFile, SkyBoxToLoad.type, SkyBox.MD);
+        loadMesh(SkyBoxToLoad.ObjFile, SkyBox.MD, phongAndSkyBoxVertices);
         createVertexBuffer(SkyBox.MD);
         createIndexBuffer(SkyBox.MD);
 
@@ -538,152 +760,155 @@ class BaseProject {
         createTextureSampler(SkyBox.TD);
     }
 
-    void loadMesh(const char *FName, ModelType T, ModelData &MD) {
-        switch (T) {
-            case OBJ:
-                loadObjMesh(FName, MD);
-                break;
-            case GLTF:
-                loadGLTFMesh(FName, MD);
-                break;
-        }
-    }
+    // added
+    void createTexts() {
+		createTextMesh(SText.MD, textVertices);
+		createVertexBuffer(SText.MD);
+		createIndexBuffer(SText.MD);
 
-    void loadObjMesh(const char *FName, ModelData &MD) {
+		createTextureImageText("Fonts.png", SText.TD);
+		createTextureImageView(SText.TD);
+		createTextureSampler(SText.TD);
+	}
+
+    void loadMesh(const char *FName, ModelData &MD, VertexDescriptor &VD) {
         tinyobj::attrib_t attrib;
-        std::vector<tinyobj::shape_t> shapes;
-        std::vector<tinyobj::material_t> materials;
-        std::string warn, err;
+		std::vector<tinyobj::shape_t> shapes;
+		std::vector<tinyobj::material_t> materials;
+		std::string warn, err;
+		
+		if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, 
+						(MODEL_PATH + FName).c_str())) {
+			throw std::runtime_error(warn + err);
+		}
+		
+		MD.vertDesc = &VD;
 
-        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err,
-                              (MODEL_PATH + FName).c_str())) {
-            throw std::runtime_error(warn + err);
-        }
+		std::cout << FName << "\n";
 
-        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
-        for (const auto &shape : shapes) {
-            for (const auto &index : shape.mesh.indices) {
-                Vertex vertex{};
+		std::vector<float> vertex{};
+		vertex.resize(VD.size);
 
-                vertex.pos = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]};
-
-                vertex.texCoord = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1 - attrib.texcoords[2 * index.texcoord_index + 1]};
-
-                vertex.norm = {
-                    attrib.normals[3 * index.normal_index + 0],
-                    attrib.normals[3 * index.normal_index + 1],
-                    attrib.normals[3 * index.normal_index + 2]};
-
-                if (uniqueVertices.count(vertex) == 0) {
-                    uniqueVertices[vertex] =
-                        static_cast<uint32_t>(MD.vertices.size());
-                    MD.vertices.push_back(vertex);
-                }
-
-                MD.indices.push_back(uniqueVertices[vertex]);
-            }
-        }
-
-        std::cout << FName << " (OBJ) -> V: " << MD.vertices.size()
-                  << ", I: " << MD.indices.size() << "\n";
+//		std::unordered_map<std::vector<float>, uint32_t> uniqueVertices{};
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+				
+				vertex[VD.deltaPos + 0] = attrib.vertices[3 * index.vertex_index + 0];
+				vertex[VD.deltaPos + 1] = attrib.vertices[3 * index.vertex_index + 1];
+				vertex[VD.deltaPos + 2] = attrib.vertices[3 * index.vertex_index + 2];
+				vertex[VD.deltaTexCoord + 0] = attrib.texcoords[2 * index.texcoord_index + 0];
+				vertex[VD.deltaTexCoord + 1] = 1 - attrib.texcoords[2 * index.texcoord_index + 1];
+				vertex[VD.deltaNormal + 0] = attrib.normals[3 * index.normal_index + 0];
+				vertex[VD.deltaNormal + 1] = attrib.normals[3 * index.normal_index + 1];
+				vertex[VD.deltaNormal + 2] = attrib.normals[3 * index.normal_index + 2];
+				
+//				if (uniqueVertices.count(vertex) == 0) {
+					int j = MD.vertices.size() / VD.size;
+//					uniqueVertices[vertex] =
+//							static_cast<uint32_t>(j);
+					int s = MD.vertices.size();
+					MD.vertices.resize(s + VD.size);
+					for(int k = 0; k < VD.size; k++) {
+						MD.vertices[s+k] = vertex[k];
+					}
+/**/				MD.indices.push_back(j);
+//				}
+				
+//				MD.indices.push_back(uniqueVertices[vertex]);
+			}
+		}
+		
+		std::cout << FName << " -> V: " << MD.vertices.size()
+				  << ", I: " << MD.indices.size() << "\n";
     }
+    
+    // Added
+    void createTextMesh(ModelData& MD, VertexDescriptor &VD) {
+        MD.vertDesc = &VD;
 
-    void loadGLTFMesh(const char *FName, ModelData &MD) {
-        tinygltf::Model model;
-        tinygltf::TinyGLTF loader;
-        std::string warn, err;
-
-        if (!loader.LoadASCIIFromFile(&model, &warn, &err,
-                                      (MODEL_PATH + FName).c_str())) {
-            throw std::runtime_error(warn + err);
-        }
-
-        for (const auto &mesh : model.meshes) {
-            std::cout << "Primitives: " << mesh.primitives.size() << "\n";
-            for (const auto &primitive : mesh.primitives) {
-                if (primitive.indices < 0) {
-                    continue;
-                }
-
-                const float *bufferPos = nullptr;
-                const float *bufferNormals = nullptr;
-                const float *bufferTangents = nullptr;
-                const float *bufferTexCoords = nullptr;
-
-                const tinygltf::Accessor &posAccessor = model.accessors[primitive.attributes.find("POSITION")->second];
-                const tinygltf::BufferView &posView = model.bufferViews[posAccessor.bufferView];
-                bufferPos = reinterpret_cast<const float *>(&(model.buffers[posView.buffer].data[posAccessor.byteOffset + posView.byteOffset]));
-
-                const tinygltf::Accessor &normAccessor = model.accessors[primitive.attributes.find("NORMAL")->second];
-                const tinygltf::BufferView &normView = model.bufferViews[normAccessor.bufferView];
-                bufferNormals = reinterpret_cast<const float *>(&(model.buffers[normView.buffer].data[normAccessor.byteOffset + normView.byteOffset]));
-
-                const tinygltf::Accessor &tanAccessor = model.accessors[primitive.attributes.find("TANGENT")->second];
-                const tinygltf::BufferView &tanView = model.bufferViews[tanAccessor.bufferView];
-                bufferTangents = reinterpret_cast<const float *>(&(model.buffers[tanView.buffer].data[tanAccessor.byteOffset + tanView.byteOffset]));
-
-                const tinygltf::Accessor &uvAccessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
-                const tinygltf::BufferView &uvView = model.bufferViews[uvAccessor.bufferView];
-                bufferTexCoords = reinterpret_cast<const float *>(&(model.buffers[uvView.buffer].data[uvAccessor.byteOffset + uvView.byteOffset]));
-
-                if ((posAccessor.count != normAccessor.count) || (posAccessor.count != tanAccessor.count) || (posAccessor.count != uvAccessor.count)) {
-                    std::cerr << "Attribute counts mismatch" << std::endl;
-                    throw std::runtime_error("Error loading GLTF component");
-                }
-
-                for (int i = 0; i < posAccessor.count; i++) {
-                    Vertex vertex{};
-
-                    vertex.pos = {
-                        bufferPos[3 * i + 0],
-                        bufferPos[3 * i + 1],
-                        bufferPos[3 * i + 2]};
-
-                    vertex.norm = {
-                        bufferNormals[3 * i + 0],
-                        bufferNormals[3 * i + 1],
-                        bufferNormals[3 * i + 2]};
-
-                    vertex.texCoord = {
-                        bufferTexCoords[2 * i + 0],
-                        bufferTexCoords[2 * i + 1]};
-
-                    MD.vertices.push_back(vertex);
-                }
-
-                const tinygltf::Accessor &accessor = model.accessors[primitive.indices];
-                const tinygltf::BufferView &bufferView = model.bufferViews[accessor.bufferView];
-                const tinygltf::Buffer &buffer = model.buffers[bufferView.buffer];
-
-                switch (accessor.componentType) {
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
-                        const uint16_t *bufferIndex = reinterpret_cast<const uint16_t *>(&(buffer.data[accessor.byteOffset + bufferView.byteOffset]));
-                        for (int i = 0; i < accessor.count; i++) {
-                            MD.indices.push_back(bufferIndex[i]);
-                        }
-                    } break;
-                    case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
-                        const uint32_t *bufferIndex = reinterpret_cast<const uint32_t *>(&(buffer.data[accessor.byteOffset + bufferView.byteOffset]));
-                        for (int i = 0; i < accessor.count; i++) {
-                            MD.indices.push_back(bufferIndex[i]);
-                        }
-                    } break;
-                    default:
-                        std::cerr << "Index component type " << accessor.componentType << " not supported!" << std::endl;
-                        throw std::runtime_error("Error loading GLTF component");
-                }
-            }
-        }
-
-        std::cout << FName << " (GLTF) -> V: " << MD.vertices.size()
-                  << ", I: " << MD.indices.size() << "\n";
-        throw std::runtime_error("Now We Stop Here!");
-    }
+		int totLen = 0;
+		for(auto& Txt : SceneText) {
+			for(int i = 0; i < Txt.usedLines; i++) {
+				totLen += strlen(Txt.l[i]);
+			}
+		}
+		std::cout << "Total characters: " << totLen << "\n";
+		
+		MD.vertices.resize(4 * VD.size * totLen);
+		MD.indices.resize(6 * totLen);
+		
+		int FontId = 1;
+		
+		float PtoTdx = -0.95;
+		float PtoTdy = -0.95;
+		float PtoTsx = 2.0/800.0;
+		float PtoTsy = 2.0/600.0;
+		
+		int minChar = 32;
+		int maxChar = 127;
+		int texW = 1024;
+		int texH = 512;
+		
+		int tpx = 0;
+		int tpy = 0;
+		
+		int vb = 0, ib = 0, k = 0;
+		for(auto& Txt : SceneText) {
+			Txt.start = ib;
+			for(int i = 0; i < Txt.usedLines; i++) {
+				for(int j = 0; j < strlen(Txt.l[i]); j++) {
+					int c = ((int)Txt.l[i][j]) - minChar;
+					if((c >= 0) && (c <= maxChar)) {
+//std::cout << k << " " << j << " " << i << " " << vb << " " << ib << " " << c << "\n";
+						CharData d = Fonts[FontId].P[c];
+				
+						MD.vertices[vb +  0] = (float)(tpx + d.xoffset) * PtoTsx + PtoTdx;
+						MD.vertices[vb +  1] = (float)(tpy + d.yoffset) * PtoTsy + PtoTdy;
+						MD.vertices[vb +  2] = 0.0;
+						MD.vertices[vb +  3] = (float)d.x / texW;
+						MD.vertices[vb +  4] = (float)d.y / texH;
+						
+						MD.vertices[vb +  5] = (float)(tpx + d.xoffset + d.width) * PtoTsx + PtoTdx;
+						MD.vertices[vb +  6] = (float)(tpy + d.yoffset) * PtoTsy + PtoTdy;
+						MD.vertices[vb +  7] = 0.0;
+						MD.vertices[vb +  8] = (float)(d.x + d.width) / texW ;
+						MD.vertices[vb +  9] = (float)d.y / texH;
+				
+						MD.vertices[vb + 10] = (float)(tpx + d.xoffset) * PtoTsx + PtoTdx;
+						MD.vertices[vb + 11] = (float)(tpy + d.yoffset + d.height) * PtoTsy + PtoTdy;
+						MD.vertices[vb + 12] =  0.0;
+						MD.vertices[vb + 13] = (float)d.x / texW;
+						MD.vertices[vb + 14] = (float)(d.y + d.height) / texH;
+						
+						MD.vertices[vb + 15] = (float)(tpx + d.xoffset + d.width) * PtoTsx + PtoTdx;
+						MD.vertices[vb + 16] = (float)(tpy + d.yoffset + d.height) * PtoTsy + PtoTdy;
+						MD.vertices[vb + 17] = 0.0;
+						MD.vertices[vb + 18] = (float)(d.x + d.width) / texW;
+						MD.vertices[vb + 19] = (float)(d.y + d.height) / texH;
+						
+						MD.indices[ib + 0] = 4 * k + 0;
+						MD.indices[ib + 1] = 4 * k + 1;
+						MD.indices[ib + 2] = 4 * k + 2;
+						MD.indices[ib + 3] = 4 * k + 1;
+						MD.indices[ib + 4] = 4 * k + 2;
+						MD.indices[ib + 5] = 4 * k + 3;
+	
+						vb += 4 * VD.size;
+						ib += 6;
+						tpx += d.xadvance;
+						k++;
+					}
+				}
+				tpy += Fonts[FontId].lineHeight;
+				tpx = 0;	
+			}
+			tpx = 0;
+			tpy = 0;
+			Txt.len = ib - Txt.start;
+		}		
+		std::cout << "Text: " << MD.vertices.size()
+				  << ", I: " << MD.indices.size() << "\n";
+	}
 
     void createVertexBuffer(ModelData &Md) {
         VkDeviceSize bufferSize = sizeof(Md.vertices[0]) * Md.vertices.size();
@@ -1550,6 +1775,127 @@ class BaseProject {
                             VK_IMAGE_ASPECT_DEPTH_BIT, 1, VK_IMAGE_VIEW_TYPE_2D, 1);
     }
 
+    VkFormat findDepthFormat() {
+		return findSupportedFormat({VK_FORMAT_D32_SFLOAT,
+									VK_FORMAT_D32_SFLOAT_S8_UINT,
+									VK_FORMAT_D24_UNORM_S8_UINT},
+									VK_IMAGE_TILING_OPTIMAL, 
+								VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT );
+	}
+
+    VkFormat findSupportedFormat(const std::vector<VkFormat> candidates,
+						VkImageTiling tiling, VkFormatFeatureFlags features) {
+		for (VkFormat format : candidates) {
+			VkFormatProperties props;
+			
+			vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
+			if (tiling == VK_IMAGE_TILING_LINEAR &&
+						(props.linearTilingFeatures & features) == features) {
+				return format;
+			} else if (tiling == VK_IMAGE_TILING_OPTIMAL &&
+						(props.optimalTilingFeatures & features) == features) {
+				return format;
+			}
+		}
+		
+		throw std::runtime_error("failed to find supported format!");
+	}
+
+    // Added
+    void Texture::createTextureImage(string file) {
+        int texWidth, texHeight, texChannels;
+        stbi_uc *pixels = stbi_load(file.c_str(), &texWidth, &texHeight, &texChannels,
+                                    STBI_rgb_alpha);
+        if (!pixels) {
+            throw runtime_error("failed to load texture image!");
+        }
+
+        VkDeviceSize imageSize = texWidth * texHeight * 4;
+        mipLevels = static_cast<uint32_t>(floor(log2(max(texWidth, texHeight)))) + 1;
+
+        VkBuffer stagingBuffer;
+        VkDeviceMemory stagingBufferMemory;
+
+        BP->createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                            VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                        stagingBuffer, stagingBufferMemory);
+        void *data;
+        vkMapMemory(BP->device, stagingBufferMemory, 0, imageSize, 0, &data);
+        memcpy(data, pixels, static_cast<size_t>(imageSize));
+        vkUnmapMemory(BP->device, stagingBufferMemory);
+
+        stbi_image_free(pixels);
+
+        BP->createImage(
+            texWidth, texHeight, mipLevels, VK_FORMAT_R8G8B8A8_SRGB,
+            VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                VK_IMAGE_USAGE_SAMPLED_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+
+        BP->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                                VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels, 1);
+        BP->copyBufferToImage(stagingBuffer, textureImage,
+                            static_cast<uint32_t>(texWidth),
+                            static_cast<uint32_t>(texHeight), 1);
+
+        BP->generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                            texWidth, texHeight, mipLevels, 1);
+
+        vkDestroyBuffer(BP->device, stagingBuffer, nullptr);
+        vkFreeMemory(BP->device, stagingBufferMemory, nullptr);
+    }
+
+    void createTextureImageText(const char* FName, TextureData& TD) {
+		int texWidth, texHeight, texChannels;
+		stbi_uc* pixels = stbi_load((TEXTURE_PATH + FName).c_str(), &texWidth, &texHeight,
+							&texChannels, STBI_rgb_alpha);
+		if (!pixels) {
+			std::cout << (TEXTURE_PATH + FName).c_str() << "\n";
+			throw std::runtime_error("failed to load texture image!");
+		}
+		std::cout << FName << " -> size: " << texWidth
+				  << "x" << texHeight << ", ch: " << texChannels <<"\n";
+
+		VkDeviceSize imageSize = texWidth * texHeight * 4;
+		TD.mipLevels = static_cast<uint32_t>(std::floor(
+						std::log2(std::max(texWidth, texHeight)))) + 1;
+		
+		VkBuffer stagingBuffer;
+		VkDeviceMemory stagingBufferMemory;
+		 
+		createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		  						VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+		  						VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		  						stagingBuffer, stagingBufferMemory);
+		void* data;
+		vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+		memcpy(data, pixels, static_cast<size_t>(imageSize));
+		vkUnmapMemory(device, stagingBufferMemory);
+		
+		stbi_image_free(pixels);
+		
+		createImageText(texWidth, texHeight, TD.mipLevels,
+					VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_SRGB,
+					VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+					VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+					VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, TD.textureImage,
+					TD.textureImageMemory);
+					
+		transitionImageLayout(TD.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+				VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, TD.mipLevels, 1);
+		copyBufferToImage(stagingBuffer, TD.textureImage,
+				static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 1);
+
+		generateMipmaps(TD.textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+						texWidth, texHeight, TD.mipLevels, 1);
+
+		vkDestroyBuffer(device, stagingBuffer, nullptr);
+		vkFreeMemory(device, stagingBufferMemory, nullptr);
+	}
+
     // Lesson 22.1
     void createImage(uint32_t width, uint32_t height,
                      uint32_t mipLevels,  // New in Lesson 23
@@ -1593,6 +1939,49 @@ class BaseProject {
 
         vkBindImageMemory(device, image, imageMemory, 0);
     }
+
+    void createImageText(uint32_t width, uint32_t height, uint32_t mipLevels,
+					 VkSampleCountFlagBits numSamples, VkFormat format, 
+					 VkImageTiling tiling, VkImageUsageFlags usage,
+				 	 VkMemoryPropertyFlags properties, VkImage& image,
+				 	 VkDeviceMemory& imageMemory) {		
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D;
+		imageInfo.extent.width = width;
+		imageInfo.extent.height = height;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = mipLevels;
+		imageInfo.arrayLayers = 1;
+		imageInfo.format = format;
+		imageInfo.tiling = tiling;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		imageInfo.usage = usage;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.samples = numSamples;
+		imageInfo.flags = 0; // Optional
+		
+		VkResult result = vkCreateImage(device, &imageInfo, nullptr, &image);
+		if (result != VK_SUCCESS) {
+		 	PrintVkError(result);
+		 	throw std::runtime_error("failed to create image!");
+		}
+		
+		VkMemoryRequirements memRequirements;
+		vkGetImageMemoryRequirements(device, image, &memRequirements);
+
+		VkMemoryAllocateInfo allocInfo{};
+		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+		allocInfo.allocationSize = memRequirements.size;
+		allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits,
+											properties);
+		if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) !=
+								VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate image memory!");
+		}
+
+		vkBindImageMemory(device, image, imageMemory, 0);
+	}
 
     // New - Lesson 23
     void generateMipmaps(VkImage image, VkFormat imageFormat,
@@ -1735,6 +2124,15 @@ class BaseProject {
 
         endSingleTimeCommands(commandBuffer);
     }
+
+    // Added
+    void createTextureImageView(TextureData& TD) {
+		TD.textureImageView = createImageView(TD.textureImage,
+										   VK_FORMAT_R8G8B8A8_SRGB,
+										   VK_IMAGE_ASPECT_COLOR_BIT,
+										   TD.mipLevels,
+										   VK_IMAGE_VIEW_TYPE_2D, 1);
+	}
 
     // New - Lesson 23
     VkCommandBuffer beginSingleTimeCommands() {
@@ -2147,52 +2545,6 @@ void Model::cleanup() {
     vkFreeMemory(BP->device, indexBufferMemory, nullptr);
     vkDestroyBuffer(BP->device, vertexBuffer, nullptr);
     vkFreeMemory(BP->device, vertexBufferMemory, nullptr);
-}
-
-void Texture::createTextureImage(string file) {
-    int texWidth, texHeight, texChannels;
-    stbi_uc *pixels = stbi_load(file.c_str(), &texWidth, &texHeight, &texChannels,
-                                STBI_rgb_alpha);
-    if (!pixels) {
-        throw runtime_error("failed to load texture image!");
-    }
-
-    VkDeviceSize imageSize = texWidth * texHeight * 4;
-    mipLevels = static_cast<uint32_t>(floor(log2(max(texWidth, texHeight)))) + 1;
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-
-    BP->createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-                         VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     stagingBuffer, stagingBufferMemory);
-    void *data;
-    vkMapMemory(BP->device, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, pixels, static_cast<size_t>(imageSize));
-    vkUnmapMemory(BP->device, stagingBufferMemory);
-
-    stbi_image_free(pixels);
-
-    BP->createImage(
-        texWidth, texHeight, mipLevels, VK_FORMAT_R8G8B8A8_SRGB,
-        VK_IMAGE_TILING_OPTIMAL,
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-            VK_IMAGE_USAGE_SAMPLED_BIT,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
-
-    BP->transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                              VK_IMAGE_LAYOUT_UNDEFINED,
-                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels, 1);
-    BP->copyBufferToImage(stagingBuffer, textureImage,
-                          static_cast<uint32_t>(texWidth),
-                          static_cast<uint32_t>(texHeight), 1);
-
-    BP->generateMipmaps(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                        texWidth, texHeight, mipLevels, 1);
-
-    vkDestroyBuffer(BP->device, stagingBuffer, nullptr);
-    vkFreeMemory(BP->device, stagingBufferMemory, nullptr);
 }
 
 void Texture::createTextureImageView() {
