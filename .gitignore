@@ -1,6 +1,9 @@
 .DS_Store
 .vscode
+*.exe
+
+BoatRunner/highscore.dat
+BoatRunner/.DS_Store
+BoatRunner/.vscode
 BoatRunner/build/*
 BoatRunner/shaders/*.spv
-BoatRunner/highscore.dat
-*.exe
