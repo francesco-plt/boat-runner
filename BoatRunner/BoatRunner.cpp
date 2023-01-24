@@ -40,7 +40,6 @@ static const float FoV = glm::radians(60.0f);
 static const float nearPlane = 0.1f;
 static const float farPlane = 100.0f;
 static const float maxDepth = -10.0f;
-static const float maxOceanDepth = -10000.0f;
 static const float leftBound = 10.0f;
 static const float rightBound = -10.0f;
 static const float forwardBound = 4.0f;
@@ -70,7 +69,6 @@ enum gameState
 enum gameDifficulty
 {
     EASY,
-    MEDIUM,
     HARD
 };
 
